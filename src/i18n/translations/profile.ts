@@ -1,0 +1,40 @@
+export const profileTranslations = {
+  uz: {
+    title: "Profil",
+    personalInfo: "Shaxsiy ma'lumotlar",
+    edit: "Tahrirlash",
+    fullName: "To'liq ism",
+    phone: "Telefon",
+    experience: "Tajriba (yil)",
+    instagram: "Instagram",
+    linkedin: "LinkedIn",
+    certificates: "Sertifikatlar",
+    uploadCertificate: "Sertifikat yuklash",
+    services: "Xizmatlar",
+    addService: "Xizmat qo'shish",
+    save: "Saqlash",
+    saving: "Saqlanmoqda...",
+    cancel: "Bekor qilish",
+    logout: "Chiqish",
+    confirmLogout: "Tizimdan chiqishni xohlaysizmi?"
+  },
+  ru: {
+    title: "Профиль",
+    personalInfo: "Личные данные",
+    edit: "Редактировать",
+    fullName: "Полное имя",
+    phone: "Телефон",
+    experience: "Опыт (лет)",
+    instagram: "Instagram",
+    linkedin: "LinkedIn",
+    certificates: "Сертификаты",
+    uploadCertificate: "Загрузить сертификат",
+    services: "Услуги",
+    addService: "Добавить услугу",
+    save: "Сохранить",
+    saving: "Сохранение...",
+    cancel: "Отмена",
+    logout: "Выйти",
+    confirmLogout: "Вы действительно хотите выйти?"
+  }
+};
