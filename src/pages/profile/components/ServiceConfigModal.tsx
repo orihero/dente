@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
+import { X, AlertCircle } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
+import { supabase } from '../../../lib/supabase';
+import { CurrencyInput } from '../../../components/CurrencyInput';
+import { Switch } from '../../../components/Switch';
 
 interface ServiceConfigModalProps {
   showModal: boolean;
@@ -11,17 +13,16 @@ interface ServiceConfigModalProps {
   loading: boolean;
 }
 
-interface BaseService {
+interface ServiceData {
   id: string;
-  category_id: string;
+  base_service_id: string;
+  price: string;
+  duration: string;
+  warranty: string;
   name_uz: string;
   name_ru: string;
-}
-
-interface ServiceCategory {
-  id: string;
-  name_uz: string;
-  name_ru: string;
+  category_name_uz: string;
+  category_name_ru: string;
 }
 
 export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
@@ -32,83 +33,178 @@ export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
 }) => {
   const { language } = useLanguageStore();
   const t = translations[language].profile;
-  const [categories, setCategories] = useState<ServiceCategory[]>([]);
-  const [services, setServices] = useState<BaseService[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [data, setData] = useState({
-    base_service_id: '',
-    price: '',
-    duration: '',
-    warranty_months: ''
-  });
+  const [categories, setCategories] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [selectedServices, setSelectedServices] = useState<Record<string, ServiceData>>({});
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadCategories();
-  }, []);
-
-  useEffect(() => {
-    if (selectedCategory) {
-      loadServices(selectedCategory);
+    if (showModal) {
+      loadCategories();
+      loadExistingServices();
     }
-  }, [selectedCategory]);
+  }, [showModal]);
 
   const loadCategories = async () => {
     try {
-      const { data: categories, error } = await supabase
+      const { data, error } = await supabase
         .from('service_categories')
         .select('*')
         .order('order');
 
       if (error) throw error;
-      setCategories(categories || []);
+      setCategories(data || []);
     } catch (error) {
       console.error('Error loading categories:', error);
     }
   };
 
+  const loadExistingServices = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('dentist_services')
+        .select(`
+          *,
+          base_service:base_services(
+            id,
+            name_uz,
+            name_ru,
+            category:service_categories(
+              id,
+              name_uz,
+              name_ru
+            )
+          )
+        `)
+        .eq('dentist_id', user.id);
+
+      if (error) throw error;
+
+      const servicesMap: Record<string, ServiceData> = {};
+      data?.forEach(service => {
+        servicesMap[service.base_service.id] = {
+          id: service.id,
+          base_service_id: service.base_service.id,
+          price: service.price ? `${service.price.toLocaleString()} UZS` : '',
+          duration: service.duration,
+          warranty: service.warranty || '',
+          name_uz: service.base_service.name_uz,
+          name_ru: service.base_service.name_ru,
+          category_name_uz: service.base_service.category.name_uz,
+          category_name_ru: service.base_service.category.name_ru
+        };
+      });
+
+      setSelectedServices(servicesMap);
+    } catch (error) {
+      console.error('Error loading existing services:', error);
+    }
+  };
+
   const loadServices = async (categoryId: string) => {
     try {
-      const { data: services, error } = await supabase
+      const { data, error } = await supabase
         .from('base_services')
         .select('*')
         .eq('category_id', categoryId)
         .order('order');
 
       if (error) throw error;
-      setServices(services || []);
+      setServices(data || []);
     } catch (error) {
       console.error('Error loading services:', error);
     }
   };
 
+  const handleServiceToggle = (service: any) => {
+    setSelectedServices(prev => {
+      const newServices = { ...prev };
+      if (newServices[service.id]) {
+        delete newServices[service.id];
+      } else {
+        newServices[service.id] = {
+          id: '',
+          base_service_id: service.id,
+          price: '',
+          duration: '30 min',
+          warranty: '',
+          name_uz: service.name_uz,
+          name_ru: service.name_ru,
+          category_name_uz: categories.find(c => c.id === service.category_id)?.name_uz || '',
+          category_name_ru: categories.find(c => c.id === service.category_id)?.name_ru || ''
+        };
+      }
+      return newServices;
+    });
+  };
+
+  const validateServices = () => {
+    const errors: string[] = [];
+    Object.values(selectedServices).forEach(service => {
+      const price = parseFloat(service.price.replace(/[^\d.]/g, ''));
+      if (!price || isNaN(price) || price <= 0) {
+        errors.push(
+          language === 'uz' 
+            ? `"${service.name_uz}" uchun narx kiritilmagan`
+            : `Не указана цена для "${service.name_ru}"`
+        );
+      }
+      if (!service.duration) {
+        errors.push(
+          language === 'uz'
+            ? `"${service.name_uz}" uchun davomiylik kiritilmagan`
+            : `Не указана длительность для "${service.name_ru}"`
+        );
+      }
+    });
+    return errors;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setError(null);
+
+      // Validate services
+      const validationErrors = validateServices();
+      if (validationErrors.length > 0) {
+        setError(validationErrors.join('\n'));
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
+      if (!user) throw new Error(language === 'uz' ? 'Avtorizatsiya talab qilinadi' : 'Требуется авторизация');
+
+      // First delete all existing services
+      const { error: deleteError } = await supabase
+        .from('dentist_services')
+        .delete()
+        .eq('dentist_id', user.id);
+
+      if (deleteError) throw deleteError;
+
+      // Then insert new services
+      const services = Object.values(selectedServices).map(service => ({
+        dentist_id: user.id,
+        base_service_id: service.base_service_id,
+        price: parseFloat(service.price.replace(/[^\d.]/g, '')),
+        duration: service.duration,
+        warranty: service.warranty || ''
+      }));
 
       const { error } = await supabase
         .from('dentist_services')
-        .insert({
-          dentist_id: user.id,
-          base_service_id: data.base_service_id,
-          price: parseFloat(data.price),
-          duration: data.duration,
-          warranty_months: parseInt(data.warranty_months)
-        });
+        .insert(services);
 
       if (error) throw error;
       await onSubmit();
       onClose();
-      setData({
-        base_service_id: '',
-        price: '',
-        duration: '',
-        warranty_months: ''
-      });
-      setSelectedCategory('');
-    } catch (error) {
-      console.error('Error adding service:', error);
+    } catch (error: any) {
+      console.error('Error updating services:', error);
+      setError(language === 'uz' ? 'Xizmatlarni yangilashda xatolik yuz berdi' : 'Ошибка при обновлении услуг');
     }
   };
 
@@ -116,94 +212,122 @@ export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-full max-w-md">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">{t.addService}</h2>
+      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
+          <h2 className="text-lg font-semibold">
+            {language === 'uz' ? 'Xizmatlarni sozlash' : 'Настройка услуг'}
+          </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <select
-              required
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="">Select category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {language === 'uz' ? category.name_uz : category.name_ru}
-                </option>
-              ))}
-            </select>
+
+        {error && (
+          <div className="p-4 bg-red-50 border-b border-red-100">
+            <div className="flex items-start gap-2 text-red-700">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 whitespace-pre-line">{error}</div>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="p-4">
+          <div className="grid grid-cols-4 gap-4">
+            {/* Categories list */}
+            <div className="col-span-1 border-r pr-4">
+              <h3 className="font-medium text-gray-900 mb-2">
+                {language === 'uz' ? 'Kategoriyalar' : 'Категории'}
+              </h3>
+              <div className="space-y-1">
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => loadServices(category.id)}
+                    className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm"
+                  >
+                    {language === 'uz' ? category.name_uz : category.name_ru}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Services list */}
+            <div className="col-span-3">
+              <div className="space-y-4">
+                {services.map((service) => {
+                  const isSelected = !!selectedServices[service.id];
+                  return (
+                    <div key={service.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-medium text-gray-900">
+                            {language === 'uz' ? service.name_uz : service.name_ru}
+                          </h4>
+                        </div>
+                        <Switch
+                          checked={isSelected}
+                          onChange={() => handleServiceToggle(service)}
+                        />
+                      </div>
+
+                      {isSelected && (
+                        <div className="mt-4 space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              {language === 'uz' ? 'Narx' : 'Цена'}
+                            </label>
+                            <CurrencyInput
+                              value={selectedServices[service.id].price}
+                              onChange={(value) => setSelectedServices(prev => ({
+                                ...prev,
+                                [service.id]: { ...prev[service.id], price: value }
+                              }))}
+                              placeholder={language === 'uz' ? 'Narxni kiriting' : 'Введите цену'}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              {language === 'uz' ? 'Davomiyligi' : 'Длительность'}
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedServices[service.id].duration}
+                              onChange={(e) => setSelectedServices(prev => ({
+                                ...prev,
+                                [service.id]: { ...prev[service.id], duration: e.target.value }
+                              }))}
+                              placeholder={language === 'uz' ? '30 min' : '30 мин'}
+                              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              {language === 'uz' ? 'Kafolat' : 'Гарантия'}
+                            </label>
+                            <input
+                              type="text"
+                              value={selectedServices[service.id].warranty}
+                              onChange={(e) => setSelectedServices(prev => ({
+                                ...prev,
+                                [service.id]: { ...prev[service.id], warranty: e.target.value }
+                              }))}
+                              placeholder={language === 'uz' ? '6 oy' : '6 месяцев'}
+                              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Service
-            </label>
-            <select
-              required
-              value={data.base_service_id}
-              onChange={(e) => setData({ ...data, base_service_id: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="">Select service</option>
-              {services.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {language === 'uz' ? service.name_uz : service.name_ru}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t.price}
-            </label>
-            <input
-              type="number"
-              required
-              min="0"
-              value={data.price}
-              onChange={(e) => setData({ ...data, price: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t.duration}
-            </label>
-            <input
-              type="text"
-              required
-              value={data.duration}
-              onChange={(e) => setData({ ...data, duration: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t.warranty}
-            </label>
-            <input
-              type="number"
-              required
-              min="0"
-              value={data.warranty_months}
-              onChange={(e) => setData({ ...data, warranty_months: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
-
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-4 mt-6">
             <button
               type="button"
               onClick={onClose}

@@ -22,7 +22,7 @@ export const ViewEditAppointmentModal: React.FC<ViewEditAppointmentModalProps> =
 }) => {
   const { language } = useLanguageStore();
   const t = translations[language].home;
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(true);
   const [data, setData] = useState({
     appointment_date: new Date(appointment?.appointment_time).toISOString().split('T')[0],
     appointment_time: new Date(appointment?.appointment_time).toLocaleTimeString('en-US', {

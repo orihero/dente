@@ -17,7 +17,7 @@ interface Service {
   };
   price: number;
   duration: string;
-  warranty_months: number;
+  warranty: string;
 }
 
 interface ServicesListProps {
@@ -44,7 +44,7 @@ export const ServicesList: React.FC<ServicesListProps> = ({ services }) => {
   if (services.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No services configured
+        {language === 'uz' ? 'Xizmatlar qo`shilmagan' : 'Нет добавленных услуг'}
       </div>
     );
   }
@@ -52,30 +52,42 @@ export const ServicesList: React.FC<ServicesListProps> = ({ services }) => {
   return (
     <div className="divide-y divide-gray-200">
       {Object.values(servicesByCategory).map(({ category, services }) => (
-        <div key={category.id} className="py-4 px-4">
+        <div key={category.id} className="py-4">
           <h4 className="font-medium text-gray-900 mb-4">
             {language === 'uz' ? category.name_uz : category.name_ru}
           </h4>
           <div className="space-y-4">
             {services.map((service) => (
               <div key={service.id} className="bg-gray-50 rounded-lg p-4">
-                <h5 className="font-medium text-gray-900">
-                  {language === 'uz' ? service.base_service.name_uz : service.base_service.name_ru}
-                </h5>
-                <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    <span>{service.duration}</span>
-                  </div>
-                  {service.warranty_months > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Shield className="w-4 h-4" />
-                      <span>{service.warranty_months} months</span>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h5 className="font-medium text-gray-900">
+                      {language === 'uz' ? service.base_service.name_uz : service.base_service.name_ru}
+                    </h5>
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center text-gray-600">
+                        <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
+                        <span className="text-sm">
+                          {language === 'uz' ? 'Davomiyligi: ' : 'Длительность: '}
+                          {service.duration}
+                        </span>
+                      </div>
+                      {service.warranty && (
+                        <div className="flex items-center text-gray-600">
+                          <Shield className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="text-sm">
+                            {language === 'uz' ? 'Kafolat: ' : 'Гарантия: '}
+                            {service.warranty}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="mt-2 text-lg font-medium text-indigo-600">
-                  {service.price.toLocaleString()} UZS
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-medium text-indigo-600">
+                      {service.price.toLocaleString()} UZS
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

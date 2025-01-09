@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useLanguageStore } from '../../store/languageStore';
@@ -9,6 +10,7 @@ import { AppointmentTimeline } from './components/AppointmentTimeline';
 import { DateNavigation } from './components/DateNavigation';
 import { NewAppointmentModal } from './components/NewAppointmentModal';
 import { ViewEditAppointmentModal } from './components/ViewEditAppointmentModal';
+import { HomeSkeleton } from './components/HomeSkeleton';
 
 interface Patient {
   id: string;
@@ -26,6 +28,7 @@ interface Appointment {
 }
 
 const Home: React.FC = () => {
+  const navigate = useNavigate();
   const { language } = useLanguageStore();
   const t = translations[language].home;
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -33,32 +36,34 @@ const Home: React.FC = () => {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showViewEditModal, setShowViewEditModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  const [showNewPatientForm, setShowNewPatientForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [appointmentData, setAppointmentData] = useState({
     patient_id: '',
     appointment_date: new Date().toISOString().split('T')[0],
     appointment_time: '09:00',
-    notes: ''
-  });
-  const [newPatientData, setNewPatientData] = useState({
-    full_name: '',
+    notes: '',
     phone: '',
+    full_name: '',
+    address: '',
     birthdate: ''
   });
-
-  useEffect(() => {
-    fetchPatients();
-  }, []);
 
   useEffect(() => {
     fetchAppointments();
   }, [selectedDate]);
 
+  const navigateDay = (days: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(selectedDate.getDate() + days);
+    setSelectedDate(newDate);
+  };
+
   const fetchAppointments = async () => {
     try {
+      setError(null);
       const startOfDay = new Date(selectedDate);
       startOfDay.setHours(0, 0, 0, 0);
       
@@ -77,49 +82,11 @@ const Home: React.FC = () => {
 
       if (error) throw error;
       setAppointments(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching appointments:', error);
-    }
-  };
-
-  const fetchPatients = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .order('full_name');
-      
-      if (error) throw error;
-      setPatients(data || []);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-    }
-  };
-
-  const handleCreatePatient = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user found');
-
-      const { error } = await supabase.from('patients').insert({
-        dentist_id: user.id,
-        ...newPatientData
-      });
-
-      if (error) throw error;
-      await fetchPatients();
-      setShowNewPatientForm(false);
-      setNewPatientData({
-        full_name: '',
-        phone: '',
-        birthdate: ''
-      });
-    } catch (error) {
-      console.error('Error creating patient:', error);
+      setError(language === 'uz' ? 'Qabullarni yuklashda xatolik yuz berdi' : 'Ошибка при загрузке приёмов');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -130,11 +97,31 @@ const Home: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
+      let patientId = appointmentData.patient_id;
+
+      // If no patient_id, create a new patient
+      if (!patientId) {
+        const { data: newPatient, error: patientError } = await supabase
+          .from('patients')
+          .insert({
+            dentist_id: user.id,
+            full_name: appointmentData.full_name,
+            phone: appointmentData.phone,
+            birthdate: appointmentData.birthdate,
+            address: appointmentData.address
+          })
+          .select()
+          .single();
+
+        if (patientError) throw patientError;
+        patientId = newPatient.id;
+      }
+
       const appointmentTime = new Date(appointmentData.appointment_date + 'T' + appointmentData.appointment_time);
 
       const { error } = await supabase.from('appointments').insert({
         dentist_id: user.id,
-        patient_id: appointmentData.patient_id,
+        patient_id: patientId,
         appointment_time: appointmentTime.toISOString(),
         notes: appointmentData.notes
       });
@@ -146,13 +133,26 @@ const Home: React.FC = () => {
         patient_id: '',
         appointment_date: new Date().toISOString().split('T')[0],
         appointment_time: '09:00',
-        notes: ''
+        notes: '',
+        phone: '',
+        full_name: '',
+        address: '',
+        birthdate: ''
       });
     } catch (error) {
       console.error('Error creating appointment:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStartAppointment = (appointment: Appointment) => {
+    navigate(`/users/${appointment.patient_id}`);
+  };
+
+  const handleEditAppointment = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setShowViewEditModal(true);
   };
 
   const handleUpdateAppointment = async (updatedAppointment: Appointment) => {
@@ -200,16 +200,9 @@ const Home: React.FC = () => {
     }
   };
 
-  const navigateDay = (days: number) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(selectedDate.getDate() + days);
-    setSelectedDate(newDate);
-  };
-
-  const handleAppointmentClick = (appointment: Appointment) => {
-    setSelectedAppointment(appointment);
-    setShowViewEditModal(true);
-  };
+  if (isLoading) {
+    return <HomeSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -219,17 +212,31 @@ const Home: React.FC = () => {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 pb-20">
-        <div className="bg-white rounded-lg shadow p-4">
-          <DateNavigation
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
-            navigateDay={navigateDay}
-          />
-          <AppointmentTimeline 
-            appointments={appointments}
-            onAppointmentClick={handleAppointmentClick}
-          />
-        </div>
+        {error ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-red-700">{error}</p>
+            <button
+              onClick={fetchAppointments}
+              className="mt-2 text-sm text-red-600 hover:text-red-500"
+            >
+              {language === 'uz' ? 'Qayta urinish' : 'Повторить попытку'}
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow p-4">
+            <DateNavigation
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              navigateDay={navigateDay}
+            />
+            <AppointmentTimeline 
+              appointments={appointments}
+              onAppointmentClick={() => {}}
+              onStartAppointment={handleStartAppointment}
+              onEditAppointment={handleEditAppointment}
+            />
+          </div>
+        )}
       </div>
 
       <BottomNavigation />
@@ -245,16 +252,10 @@ const Home: React.FC = () => {
       <NewAppointmentModal
         showModal={showAppointmentModal}
         onClose={() => setShowAppointmentModal(false)}
-        showNewPatientForm={showNewPatientForm}
-        setShowNewPatientForm={setShowNewPatientForm}
         loading={loading}
-        onCreatePatient={handleCreatePatient}
         onCreateAppointment={handleCreateAppointment}
-        patients={patients}
         appointmentData={appointmentData}
         setAppointmentData={setAppointmentData}
-        newPatientData={newPatientData}
-        setNewPatientData={setNewPatientData}
       />
 
       {selectedAppointment && (

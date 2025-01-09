@@ -96,7 +96,7 @@ export const UserDetails: React.FC = () => {
                 name_ru
               ),
               duration,
-              warranty_months
+              warranty
             )
           ),
           files:record_files(
@@ -136,7 +136,7 @@ export const UserDetails: React.FC = () => {
                   name_ru
                 ),
                 duration,
-                warranty_months
+                warranty
               )
             ),
             files:record_files(

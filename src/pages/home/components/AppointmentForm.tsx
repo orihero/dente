@@ -1,17 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
+import { PhoneInput } from '../../../components/PhoneInput';
+import { supabase } from '../../../lib/supabase';
 
 interface AppointmentFormProps {
   loading: boolean;
   onSubmit: (e: React.FormEvent) => Promise<void>;
-  onAddNewPatient: () => void;
-  patients: any[];
   data: {
     patient_id: string;
     appointment_date: string;
     appointment_time: string;
     notes: string;
+    phone: string;
+    full_name: string;
+    address: string;
+    birthdate: string;
   };
   setData: (data: any) => void;
 }
@@ -19,51 +23,163 @@ interface AppointmentFormProps {
 export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   loading,
   onSubmit,
-  onAddNewPatient,
-  patients,
   data,
   setData,
 }) => {
   const { language } = useLanguageStore();
   const t = translations[language].home;
+  const [isExistingPatient, setIsExistingPatient] = useState(false);
+
+  const handlePhoneChange = async (value: string) => {
+    setData({ ...data, phone: value });
+    
+    // Reset existing patient state when phone number changes
+    if (isExistingPatient) {
+      setIsExistingPatient(false);
+    }
+    
+    // Only check for existing patient if phone number is complete
+    if (value.replace(/\D/g, '').length === 12) { // +998 XX XXX XX XX
+      try {
+        const { data: patients, error } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('phone', value);
+
+        if (error) throw error;
+
+        if (patients && patients.length > 0) {
+          const patient = patients[0];
+          setIsExistingPatient(true);
+          setData(prev => ({
+            ...prev,
+            patient_id: patient.id,
+            full_name: patient.full_name,
+            birthdate: patient.birthdate,
+            address: patient.address || ''
+          }));
+        } else {
+          // Clear patient data if no match found
+          setData(prev => ({
+            ...prev,
+            patient_id: '',
+            full_name: '',
+            birthdate: '',
+            address: ''
+          }));
+        }
+      } catch (error) {
+        console.error('Error checking patient:', error);
+      }
+    }
+  };
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Patient
+          {t.phone}
         </label>
-        <select
+        <PhoneInput
+          value={data.phone}
+          onChange={handlePhoneChange}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {t.fullName}
+        </label>
+        <input
+          type="text"
           required
-          value={data.patient_id}
-          onChange={(e) => setData({ ...data, patient_id: e.target.value })}
+          value={data.full_name}
+          onChange={(e) => setData({ ...data, full_name: e.target.value })}
           className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-        >
-          <option value="">Select a patient</option>
-          {patients.map((patient) => (
-            <option key={patient.id} value={patient.id}>
-              {patient.full_name}
-            </option>
-          ))}
-        </select>
+          readOnly={isExistingPatient}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {t.address}
+        </label>
+        <input
+          type="text"
+          value={data.address}
+          onChange={(e) => setData({ ...data, address: e.target.value })}
+          className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+          readOnly={isExistingPatient}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {t.birthdate}
+        </label>
+        <input
+          type="date"
+          required
+          value={data.birthdate}
+          onChange={(e) => setData({ ...data, birthdate: e.target.value })}
+          className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+          readOnly={isExistingPatient}
+        />
       </div>
 
       <div className="flex gap-4">
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Date
+            {t.day}
           </label>
-          <input
-            type="date"
+          <select
             required
-            value={data.appointment_date}
-            onChange={(e) => setData({ ...data, appointment_date: e.target.value })}
+            value={data.appointment_date.split('-')[2]}
+            onChange={(e) => {
+              const [year, month] = data.appointment_date.split('-');
+              setData({ 
+                ...data, 
+                appointment_date: `${year}-${month}-${e.target.value.padStart(2, '0')}` 
+              });
+            }}
             className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          >
+            <option value="">{t.day}</option>
+            {[...Array(31)].map((_, i) => (
+              <option key={i + 1} value={(i + 1).toString().padStart(2, '0')}>{i + 1}</option>
+            ))}
+          </select>
         </div>
         <div className="flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Time
+            {t.month}
+          </label>
+          <select
+            required
+            value={data.appointment_date.split('-')[1]}
+            onChange={(e) => {
+              const [year, _, day] = data.appointment_date.split('-');
+              setData({ 
+                ...data, 
+                appointment_date: `${year}-${e.target.value}-${day}` 
+              });
+            }}
+            className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="">{t.month}</option>
+            {[...Array(12)].map((_, i) => {
+              const monthNum = i + 1;
+              return (
+                <option key={monthNum} value={monthNum.toString().padStart(2, '0')}>
+                  {t.months[monthNum as keyof typeof t.months]}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {t.time}
           </label>
           <input
             type="time"
@@ -77,7 +193,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Notes
+          {t.notes}
         </label>
         <textarea
           value={data.notes}
@@ -87,22 +203,13 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         />
       </div>
 
-      <div className="flex gap-4">
-        <button
-          type="button"
-          onClick={onAddNewPatient}
-          className="flex-1 px-4 py-2 border border-indigo-600 text-indigo-600 rounded-md hover:bg-indigo-50"
-        >
-          Add New Patient
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-        >
-          {loading ? 'Creating...' : 'Create Appointment'}
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+      >
+        {loading ? t.creating : t.create}
+      </button>
     </form>
   );
 };

@@ -21,7 +21,28 @@ export const homeTranslations = {
     cancel: "Bekor qilish",
     confirmDelete: "Haqiqatan ham bu qabulni o'chirmoqchimisiz?",
     creating: "Yaratilmoqda...",
-    create: "Yaratish"
+    create: "Yaratish",
+    fullName: "To'liq ism",
+    phone: "Telefon raqami",
+    birthdate: "Tug'ilgan sana",
+    address: "Manzil",
+    day: "Kun",
+    month: "Oy",
+    year: "Yil",
+    months: {
+      1: "Yanvar",
+      2: "Fevral",
+      3: "Mart",
+      4: "Aprel",
+      5: "May",
+      6: "Iyun",
+      7: "Iyul",
+      8: "Avgust",
+      9: "Sentabr",
+      10: "Oktabr",
+      11: "Noyabr",
+      12: "Dekabr"
+    }
   },
   ru: {
     title: "Главная",
@@ -45,6 +66,27 @@ export const homeTranslations = {
     cancel: "Отмена",
     confirmDelete: "Вы действительно хотите удалить этот приём?",
     creating: "Создание...",
-    create: "Создать"
+    create: "Создать",
+    fullName: "Полное имя",
+    phone: "Номер телефона",
+    birthdate: "Дата рождения",
+    address: "Адрес",
+    day: "День",
+    month: "Месяц",
+    year: "Год",
+    months: {
+      1: "Январь",
+      2: "Февраль",
+      3: "Март",
+      4: "Апрель",
+      5: "Май",
+      6: "Июнь",
+      7: "Июль",
+      8: "Август",
+      9: "Сентябрь",
+      10: "Октябрь",
+      11: "Ноябрь",
+      12: "Декабрь"
+    }
   }
 };
