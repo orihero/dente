@@ -5,6 +5,7 @@ import {
   Edit2, LogOut, Settings, Calendar, Mail
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../components/AuthProvider';
 import { useLanguageStore } from '../store/languageStore';
 import { translations } from '../i18n/translations';
 import { ServiceConfigModal } from './profile/components/ServiceConfigModal';
@@ -32,43 +33,27 @@ interface Profile {
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { language } = useLanguageStore();
   const t = translations[language].profile;
-  
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [certificates, setCertificates] = useState([]);
   const [services, setServices] = useState([]);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [certificates, setCertificates] = useState([]);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [authUser, setAuthUser] = useState<any>(null);
 
   useEffect(() => {
-    loadAuthUser();
-    loadProfile();
-    loadServices();
-    loadCertificates();
+    fetchProfile();
+    fetchServices();
+    fetchCertificates();
   }, []);
 
-  const loadAuthUser = async () => {
+  const fetchProfile = async () => {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      if (!user) throw new Error('No authenticated user found');
-      setAuthUser(user);
-    } catch (error) {
-      console.error('Error loading auth user:', error);
-      navigate('/login');
-    }
-  };
-
-  const loadProfile = async () => {
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!user) throw new Error('No authenticated user found');
+      if (!user) return;
 
       const { data, error } = await supabase
         .from('dentists')
@@ -77,24 +62,17 @@ export const Profile: React.FC = () => {
         .single();
 
       if (error) throw error;
-      if (!data) throw new Error('Profile not found');
-      
       setProfile(data);
-    } catch (error: any) {
-      console.error('Error loading profile:', error.message || error);
-      if (error.message?.includes('auth')) {
-        navigate('/login');
-      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadServices = async () => {
+  const fetchServices = async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!user) throw new Error('No authenticated user found');
+      if (!user) return;
 
       const { data, error } = await supabase
         .from('dentist_services')
@@ -116,33 +94,57 @@ export const Profile: React.FC = () => {
 
       if (error) throw error;
       setServices(data || []);
-    } catch (error: any) {
-      console.error('Error loading services:', error.message || error);
+    } catch (error) {
+      console.error('Error loading services:', error);
     }
   };
 
-  const loadCertificates = async () => {
+  const fetchCertificates = async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!user) throw new Error('No authenticated user found');
+      if (!user) return;
 
       const { data, error } = await supabase
         .from('dentist_certificates')
         .select('*')
         .eq('dentist_id', user.id)
-        .order('issue_date', { ascending: false });
+        .order('created_at');
 
       if (error) throw error;
       setCertificates(data || []);
-    } catch (error: any) {
-      console.error('Error loading certificates:', error.message || error);
+    } catch (error) {
+      console.error('Error loading certificates:', error);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    setLoading(true);
+    try {
+      await fetchProfile();
+      await fetchServices();
+      await fetchCertificates();
+      setShowEditModal(false);
+      setShowServiceModal(false);
+      setShowCertificateModal(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (!window.confirm(t.confirmLogout)) return;
+
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
     }
   };
 
   const handleDeleteCertificate = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this certificate?')) return;
-
     setLoading(true);
     try {
       const { error } = await supabase
@@ -151,7 +153,7 @@ export const Profile: React.FC = () => {
         .eq('id', id);
 
       if (error) throw error;
-      await loadCertificates();
+      await fetchCertificates();
     } catch (error) {
       console.error('Error deleting certificate:', error);
     } finally {
@@ -159,42 +161,39 @@ export const Profile: React.FC = () => {
     }
   };
 
-  const handleLogout = async () => {
-    if (window.confirm(t.confirmLogout)) {
-      await supabase.auth.signOut();
-      navigate('/login');
-    }
-  };
-
-  const calculateAge = (birthdate: string) => {
-    const today = new Date();
-    const birth = new Date(birthdate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
   if (isLoading) {
     return <ProfileSkeleton />;
   }
 
-  if (!profile || !authUser) return null;
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-medium text-gray-900 mb-2">
+            {language === 'uz' ? 'Profil topilmadi' : 'Профиль не найден'}
+          </h2>
+          <button
+            onClick={handleSignOut}
+            className="text-indigo-600 hover:text-indigo-500"
+          >
+            {t.logout}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <h1 className="text-xl font-semibold text-gray-900">{t.title}</h1>
+            <h1 className="text-2xl font-bold text-indigo-600">Dente.uz</h1>
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+              onClick={handleSignOut}
+              className="text-gray-500 hover:text-gray-700"
             >
-              <LogOut className="w-5 h-5" />
-              <span>{t.logout}</span>
+              <LogOut className="w-6 h-6" />
             </button>
           </div>
         </div>
@@ -203,79 +202,83 @@ export const Profile: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="p-6">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-6">
-                {profile.photo_url ? (
-                  <img
-                    src={profile.photo_url}
-                    alt={profile.full_name}
-                    className="w-24 h-24 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <User className="w-12 h-12 text-indigo-600" />
-                  </div>
-                )}
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    {profile.full_name}
-                  </h2>
-                  <div className="space-y-2">
-                    <div className="flex items-center text-gray-600">
-                      <Phone className="w-5 h-5 mr-3" />
-                      <span>{profile.phone}</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Mail className="w-5 h-5 mr-3" />
-                      <span>{authUser.email}</span>
-                    </div>
-                    {profile.birthdate && (
-                      <div className="flex items-center text-gray-600">
-                        <Calendar className="w-5 h-5 mr-3" />
-                        <span>
-                          {new Date(profile.birthdate).toLocaleDateString(
-                            language === 'uz' ? 'uz-UZ' : 'ru-RU',
-                            { year: 'numeric', month: 'long', day: 'numeric' }
-                          )}
-                          {' • '}
-                          {calculateAge(profile.birthdate)} {language === 'uz' ? 'yosh' : 'лет'}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center text-gray-600">
-                      <Award className="w-5 h-5 mr-3" />
-                      <span>
-                        {profile.experience} {language === 'uz' ? 'yillik tajriba' : 'лет опыта'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {t.personalInfo}
+              </h2>
               <button
-                onClick={() => setShowProfileModal(true)}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                onClick={() => setShowEditModal(true)}
+                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-500"
               >
                 <Edit2 className="w-5 h-5" />
                 <span>{t.edit}</span>
               </button>
             </div>
 
-            {profile.social_media?.platforms?.length > 0 && (
-              <div className="mt-6 flex flex-wrap gap-4">
-                {profile.social_media.platforms.map((social, index) => (
-                  <a
-                    key={index}
-                    href={social.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-                  >
-                    <LinkIcon className="w-5 h-5" />
-                    <span>{social.platform}</span>
-                  </a>
-                ))}
+            <div className="space-y-6">
+              <div className="flex justify-center">
+                <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100">
+                  {profile.photo_url ? (
+                    <img
+                      src={profile.photo_url}
+                      alt={profile.full_name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-12 h-12 text-gray-400" />
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+
+              <div className="space-y-4">
+                <div className="flex items-center text-gray-600">
+                  <User className="w-5 h-5 mr-3" />
+                  <span>{profile.full_name || '—'}</span>
+                </div>
+
+                <div className="flex items-center text-gray-600">
+                  <Phone className="w-5 h-5 mr-3" />
+                  <span>{profile.phone || '—'}</span>
+                </div>
+
+                {profile.birthdate && (
+                  <div className="flex items-center text-gray-600">
+                    <Calendar className="w-5 h-5 mr-3" />
+                    <span>
+                      {new Date(profile.birthdate).toLocaleDateString(
+                        language === 'uz' ? 'uz-UZ' : 'ru-RU'
+                      )}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center text-gray-600">
+                  <Award className="w-5 h-5 mr-3" />
+                  <span>
+                    {profile.experience} {t.experience}
+                  </span>
+                </div>
+
+                {profile.social_media?.platforms?.length > 0 && (
+                  <div className="flex items-center gap-4 mt-4">
+                    {profile.social_media.platforms.map((social, index) => (
+                      <a
+                        key={index}
+                        href={social.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-gray-600 hover:text-indigo-600"
+                      >
+                        <LinkIcon className="w-5 h-5" />
+                        <span>{social.platform}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <CertificatesSection
@@ -287,7 +290,7 @@ export const Profile: React.FC = () => {
 
           <div className="border-t border-gray-200">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-medium text-gray-900">
                   {t.services}
                 </h3>
@@ -296,9 +299,10 @@ export const Profile: React.FC = () => {
                   className="flex items-center gap-2 text-indigo-600 hover:text-indigo-500"
                 >
                   <Settings className="w-5 h-5" />
-                  <span>{language === 'uz' ? 'Xizmatlarni sozlash' : 'Настроить услуги'}</span>
+                  <span>{t.addService}</span>
                 </button>
               </div>
+
               <ServicesList services={services} />
             </div>
           </div>
@@ -308,9 +312,9 @@ export const Profile: React.FC = () => {
       <BottomNavigation />
 
       <ProfileEditModal
-        showModal={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-        onSubmit={loadProfile}
+        showModal={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSubmit={handleUpdateProfile}
         loading={loading}
         profile={profile}
       />
@@ -318,14 +322,14 @@ export const Profile: React.FC = () => {
       <ServiceConfigModal
         showModal={showServiceModal}
         onClose={() => setShowServiceModal(false)}
-        onSubmit={loadServices}
+        onSubmit={handleUpdateProfile}
         loading={loading}
       />
 
       <CertificateUploadModal
         showModal={showCertificateModal}
         onClose={() => setShowCertificateModal(false)}
-        onUpload={loadCertificates}
+        onUpload={handleUpdateProfile}
         loading={loading}
       />
     </div>

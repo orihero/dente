@@ -11,7 +11,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storage: window.localStorage
   },
   realtime: {
     params: {
@@ -30,7 +31,8 @@ export const handleSupabaseError = (error: any) => {
   }
   
   // Check if it's an authentication error
-  if (error.status === 401) {
+  if (error.status === 400 || error.status === 401) {
+    supabase.auth.signOut(); // Sign out user on auth errors
     return 'Authentication error. Please log in again.';
   }
   
