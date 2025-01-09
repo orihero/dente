@@ -15,6 +15,7 @@ import { RecordModal } from './users/components/RecordModal';
 import { RecordsList } from './users/components/RecordsList';
 import { RecordDetailsModal } from './users/components/RecordDetailsModal';
 import { BottomNavigation } from '../components/BottomNavigation';
+import { ViewFamilyMembersModal } from './users/components/ViewFamilyMembersModal';
 
 interface User {
   id: string;
@@ -36,6 +37,7 @@ export const UserDetails: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'records' | 'payments'>('records');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showFamilyMemberModal, setShowFamilyMemberModal] = useState(false);
+  const [showViewFamilyMembersModal, setShowViewFamilyMembersModal] = useState(false);
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
@@ -378,22 +380,29 @@ export const UserDetails: React.FC = () => {
                 </span>
               </div>
             </div>
-          </div>
 
-          <div className="border-t border-gray-200">
-            <div className="flex items-center justify-between p-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                {t.familyMembers}
-              </h3>
-              <button
-                onClick={() => setShowFamilyMemberModal(true)}
-                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-500"
-              >
-                <UserPlus className="w-5 h-5" />
-                <span>{t.addFamilyMember}</span>
-              </button>
+            <div className="mt-6 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-gray-500" />
+                <span className="text-gray-700">{familyMembers.length} {t.familyMembers}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowFamilyMemberModal(true)}
+                  className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
+                >
+                  {t.addFamilyMember}
+                </button>
+                {familyMembers.length > 0 && (
+                  <button
+                    onClick={() => setShowViewFamilyMembersModal(true)}
+                    className="text-gray-600 hover:text-gray-500 text-sm font-medium"
+                  >
+                    View All
+                  </button>
+                )}
+              </div>
             </div>
-            <FamilyMembersList members={familyMembers} onRefresh={fetchFamilyMembers} />
           </div>
 
           <div className="border-t border-gray-200">
@@ -478,6 +487,13 @@ export const UserDetails: React.FC = () => {
         loading={loading}
       />
 
+      <ViewFamilyMembersModal
+        showModal={showViewFamilyMembersModal}
+        onClose={() => setShowViewFamilyMembersModal(false)}
+        members={familyMembers}
+        onRefresh={fetchFamilyMembers}
+      />
+
       <RecordModal
         showModal={showRecordModal}
         onClose={() => setShowRecordModal(false)}
@@ -508,5 +524,3 @@ export const UserDetails: React.FC = () => {
     </div>
   );
 };
-
-export default UserDetails;
