@@ -3,19 +3,22 @@ import { X, AlertCircle, Check } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { supabase } from '../../../lib/supabase';
+import { getServiceColor } from '../../../utils/serviceColors';
 
 interface ApplyServiceModalProps {
   showModal: boolean;
   onClose: () => void;
   onApply: (services: any[]) => void;
   selectedServices: any[];
+  modalTitle?: string;
 }
 
 export const ApplyServiceModal: React.FC<ApplyServiceModalProps> = ({
   showModal,
   onClose,
   onApply,
-  selectedServices
+  selectedServices,
+  modalTitle = 'Apply Services'
 }) => {
   const { language } = useLanguageStore();
   const t = translations[language].users;
@@ -46,7 +49,8 @@ export const ApplyServiceModal: React.FC<ApplyServiceModalProps> = ({
             category:service_categories(
               id,
               name_uz,
-              name_ru
+              name_ru,
+              color
             )
           )
         `)
@@ -54,7 +58,21 @@ export const ApplyServiceModal: React.FC<ApplyServiceModalProps> = ({
         .order('created_at');
 
       if (error) throw error;
-      setServices(data || []);
+
+      // Group services by category
+      const groupedServices = data?.reduce((acc, service) => {
+        const categoryId = service.base_service.category.id;
+        if (!acc[categoryId]) {
+          acc[categoryId] = {
+            category: service.base_service.category,
+            services: []
+          };
+        }
+        acc[categoryId].services.push(service);
+        return acc;
+      }, {});
+
+      setServices(Object.values(groupedServices) || []);
     } catch (error: any) {
       console.error('Error fetching services:', error);
       setError(error.message || 'Failed to load services');
@@ -72,7 +90,9 @@ export const ApplyServiceModal: React.FC<ApplyServiceModalProps> = ({
         name: language === 'uz' ? service.base_service.name_uz : service.base_service.name_ru,
         price: service.price,
         duration: service.duration,
-        warranty_months: service.warranty_months
+        warranty: service.warranty,
+        categoryId: service.base_service.category.id,
+        categoryColor: service.base_service.category.color
       }]);
     }
   };
@@ -88,7 +108,7 @@ export const ApplyServiceModal: React.FC<ApplyServiceModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
       <div className="bg-white rounded-lg w-full max-w-2xl">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Apply Services</h2>
+          <h2 className="text-lg font-semibold">{modalTitle}</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
             <X className="w-5 h-5" />
           </button>
@@ -104,36 +124,48 @@ export const ApplyServiceModal: React.FC<ApplyServiceModalProps> = ({
         )}
 
         <div className="p-4">
-          <div className="grid grid-cols-1 gap-3 max-h-[60vh] overflow-y-auto">
-            {services.map((service) => {
-              const isSelected = selected.some(s => s.id === service.id);
-              return (
-                <button
-                  key={service.id}
-                  onClick={() => handleToggleService(service)}
-                  className={`flex items-start justify-between p-3 rounded-lg border ${
-                    isSelected 
-                      ? 'border-indigo-500 bg-indigo-50' 
-                      : 'border-gray-200 hover:border-indigo-200'
-                  }`}
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        {language === 'uz' ? service.base_service.name_uz : service.base_service.name_ru}
-                      </span>
-                      {isSelected && (
-                        <Check className="w-4 h-4 text-indigo-600" />
-                      )}
-                    </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      Duration: {service.duration} • Warranty: {service.warranty_months} months
-                    </div>
-                  </div>
-                  <span className="font-medium">{service.price.toLocaleString()} UZS</span>
-                </button>
-              );
-            })}
+          <div className="grid grid-cols-1 gap-6 max-h-[60vh] overflow-y-auto">
+            {services.map((categoryGroup: any) => (
+              <div key={categoryGroup.category.id} className="space-y-3">
+                <h3 className="font-medium text-gray-900">
+                  {language === 'uz' ? categoryGroup.category.name_uz : categoryGroup.category.name_ru}
+                </h3>
+                <div className="space-y-2">
+                  {categoryGroup.services.map((service: any) => {
+                    const isSelected = selected.some(s => s.id === service.id);
+                    const opacity = isSelected ? 0.2 : 0.1;
+                    const colorFn = getServiceColor(categoryGroup.category.id, opacity);
+                    const backgroundColor = colorFn(categoryGroup.category.color);
+
+                    return (
+                      <button
+                        key={service.id}
+                        onClick={() => handleToggleService(service)}
+                        className={`w-full flex items-start justify-between p-3 rounded-lg transition-colors ${
+                          isSelected ? 'ring-2 ring-indigo-500' : ''
+                        }`}
+                        style={{ backgroundColor }}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">
+                              {language === 'uz' ? service.base_service.name_uz : service.base_service.name_ru}
+                            </span>
+                            {isSelected && (
+                              <Check className="w-4 h-4 text-indigo-600" />
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            Duration: {service.duration} • Warranty: {service.warranty}
+                          </div>
+                        </div>
+                        <span className="font-medium">{service.price.toLocaleString()} UZS</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="flex gap-4 mt-6">

@@ -7,6 +7,7 @@ import Home from './pages/home';
 import { Users } from './pages/Users';
 import { UserDetails } from './pages/UserDetails';
 import { Profile } from './pages/Profile';
+import Draft from './pages/Draft';
 
 export default function App() {
   return (
@@ -43,6 +44,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/draft"
+            element={
+              <ProtectedRoute>
+                <Draft />
               </ProtectedRoute>
             }
           />

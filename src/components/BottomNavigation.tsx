@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, User, Home as HomeIcon } from 'lucide-react';
+import { Users, User, Home as HomeIcon, FileText } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguageStore } from '../store/languageStore';
 import { translations } from '../i18n/translations';
@@ -33,6 +33,15 @@ export const BottomNavigation: React.FC = () => {
             <span className="text-xs mt-1">{t.users}</span>
           </button>
           <button
+            onClick={() => navigate('/draft')}
+            className={`flex flex-col items-center p-2 ${
+              location.pathname === '/draft' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'
+            }`}
+          >
+            <FileText className="w-6 h-6" />
+            <span className="text-xs mt-1">Draft</span>
+          </button>
+          <button
             onClick={() => navigate('/profile')}
             className={`flex flex-col items-center p-2 ${
               location.pathname === '/profile' ? 'text-indigo-600' : 'text-gray-600 hover:text-indigo-600'
@@ -45,4 +54,4 @@ export const BottomNavigation: React.FC = () => {
       </div>
     </div>
   );
-}
+};
