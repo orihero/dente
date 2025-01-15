@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Lock, Mail, AlertCircle, Languages } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Languages, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguageStore } from '../store/languageStore';
-import { translations } from '../i18n/translations';
 
 interface LoginForm {
   emailPhone: string;
@@ -14,10 +13,33 @@ interface LoginForm {
 export const Login: React.FC = () => {
   const navigate = useNavigate();
   const { language, setLanguage } = useLanguageStore();
-  const t = translations[language].login;
   const [error, setError] = useState('');
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
+
+  // Define translations directly in the component for now
+  const translations = {
+    uz: {
+      title: "Tizimga kirish",
+      emailPhone: "Email yoki telefon",
+      password: "Parol",
+      loginButton: "Kirish",
+      forgotPassword: "Parolni unutdingizmi?",
+      invalidCredentials: "Email yoki parol noto'g'ri",
+      back: "Orqaga"
+    },
+    ru: {
+      title: "Вход в систему",
+      emailPhone: "Email или телефон",
+      password: "Пароль",
+      loginButton: "Войти",
+      forgotPassword: "Забыли пароль?",
+      invalidCredentials: "Неверный email или пароль",
+      back: "Назад"
+    }
+  };
+
+  const t = translations[language];
 
   const onSubmit = async (data: LoginForm) => {
     try {
@@ -36,6 +58,16 @@ export const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="absolute top-4 left-4">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/50 text-gray-700"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>{t.back}</span>
+        </button>
+      </div>
+
       <div className="absolute top-4 right-4">
         <button
           onClick={() => setLanguage(language === 'uz' ? 'ru' : 'uz')}

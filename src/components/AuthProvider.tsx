@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
@@ -15,6 +15,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Check active sessions and sets the user
@@ -25,13 +26,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error) {
           console.error('Session error:', error);
           setUser(null);
-          navigate('/login');
           return;
         }
 
         if (!session) {
           setUser(null);
-          navigate('/login');
           return;
         }
 
@@ -39,7 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error('Auth error:', error);
         setUser(null);
-        navigate('/login');
       } finally {
         setLoading(false);
       }
@@ -51,7 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
         setUser(null);
-        navigate('/login');
+        // Only redirect to login if we're on a protected route
+        if (location.pathname !== '/' && !location.pathname.startsWith('/login')) {
+          navigate('/login');
+        }
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setUser(session?.user ?? null);
       }
@@ -59,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, location]);
 
   return (
     <AuthContext.Provider value={{ user, loading }}>
