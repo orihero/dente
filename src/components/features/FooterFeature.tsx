@@ -2,7 +2,7 @@ import React from 'react';
 import { Mail, Phone, MapPin, Facebook, Instagram, Send } from 'lucide-react';
 import { useLanguageStore } from '../../store/languageStore';
 
-export const FooterFeature = () => {
+export const FooterFeature: React.FC = () => {
   const { language } = useLanguageStore();
 
   const translations = {
