@@ -1,6 +1,7 @@
 import React from 'react';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { useLanguageStore } from '../../store/languageStore';
+import { financeJson } from '../../assets';
 
 export const FinancialFeature = () => {
   const { language } = useLanguageStore();
@@ -55,7 +56,7 @@ export const FinancialFeature = () => {
               <Player
                 autoplay
                 loop
-                src="/src/assets/lottie/finance.json"
+                src={financeJson}
                 style={{ width: '100%', height: '100%' }}
               />
             </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { useLanguageStore } from '../../store/languageStore';
+import { smilePreviewJson } from '../../assets';
 
 export const SmilePreviewFeature = () => {
   const { language } = useLanguageStore();
@@ -39,7 +40,7 @@ export const SmilePreviewFeature = () => {
               <Player
                 autoplay
                 loop
-                src="/src/assets/lottie/smile-preview.json"
+                src={smilePreviewJson}
                 style={{ width: '100%', height: '100%' }}
               />
             </div>

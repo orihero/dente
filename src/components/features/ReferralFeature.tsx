@@ -1,6 +1,7 @@
 import React from 'react';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { useLanguageStore } from '../../store/languageStore';
+import { referalJson } from '../../assets';
 
 export const ReferralFeature = () => {
   const { language } = useLanguageStore();
@@ -33,11 +34,11 @@ export const ReferralFeature = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="flex justify-center">
-            <div className="w-full max-w-2xl transform scale-125"> {/* Increased from max-w-md to max-w-2xl and added scale */}
+            <div className="w-full max-w-2xl transform scale-125">
               <Player
                 autoplay
                 loop
-                src="/src/assets/lottie/referal.json"
+                src={referalJson}
                 style={{ width: '100%', height: '100%' }}
               />
             </div>

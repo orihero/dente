@@ -1,6 +1,7 @@
 import React from 'react';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { useLanguageStore } from '../../store/languageStore';
+import { loyaltyJson } from '../../assets';
 
 export const LoyaltyFeature = () => {
   const { language } = useLanguageStore();
@@ -55,7 +56,7 @@ export const LoyaltyFeature = () => {
               <Player
                 autoplay
                 loop
-                src="/src/assets/lottie/loyalty.json"
+                src={loyaltyJson}
                 style={{ width: '100%', height: '100%' }}
               />
             </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { useLanguageStore } from '../../store/languageStore';
+import { patientManagementJson } from '../../assets';
 
 export const PatientManagementFeature = () => {
   const { language } = useLanguageStore();
@@ -37,7 +38,7 @@ export const PatientManagementFeature = () => {
               <Player
                 autoplay
                 loop
-                src="/src/assets/lottie/patient-managament.json"
+                src={patientManagementJson}
                 style={{ width: '100%', height: '100%' }}
               />
             </div>

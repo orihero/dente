@@ -1,6 +1,7 @@
 import React from 'react';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { useLanguageStore } from '../../store/languageStore';
+import { appointmentJson } from '../../assets';
 
 export const AppointmentFeature = () => {
   const { language } = useLanguageStore();
@@ -55,7 +56,7 @@ export const AppointmentFeature = () => {
               <Player
                 autoplay
                 loop
-                src="/src/assets/lottie/appointment.json"
+                src={appointmentJson}
                 style={{ width: '100%', height: '100%' }}
               />
             </div>
