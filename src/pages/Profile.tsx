@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, Phone, Award, Link as LinkIcon,
-  Edit2, LogOut, Settings, Calendar, Mail
-} from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { useLanguageStore } from '../store/languageStore';
@@ -13,8 +10,14 @@ import { ServicesList } from './profile/components/ServicesList';
 import { ProfileEditModal } from './profile/components/ProfileEditModal';
 import { CertificatesSection } from './profile/components/CertificatesSection';
 import { CertificateUploadModal } from './profile/components/CertificateUploadModal';
+import { TelegramBotSettings } from './profile/components/TelegramBotSettings';
+import { LoyaltyProgramsSection } from './profile/components/LoyaltyProgramsSection';
+import { ReferralSection } from './profile/components/ReferralSection';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { ProfileSkeleton } from './profile/components/ProfileSkeleton';
+import { ProfileHeader } from './profile/components/ProfileHeader';
+import { ProfileInfo } from './profile/components/ProfileInfo';
+import { ProfileServices } from './profile/components/ProfileServices';
 
 interface Profile {
   id: string;
@@ -185,101 +188,14 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <h1 className="text-2xl font-bold text-indigo-600">Dente.uz</h1>
-            <button
-              onClick={handleSignOut}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <LogOut className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      </div>
+      <ProfileHeader onSignOut={handleSignOut} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {t.personalInfo}
-              </h2>
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-500"
-              >
-                <Edit2 className="w-5 h-5" />
-                <span>{t.edit}</span>
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex justify-center">
-                <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100">
-                  {profile.photo_url ? (
-                    <img
-                      src={profile.photo_url}
-                      alt={profile.full_name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <User className="w-12 h-12 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center text-gray-600">
-                  <User className="w-5 h-5 mr-3" />
-                  <span>{profile.full_name || '—'}</span>
-                </div>
-
-                <div className="flex items-center text-gray-600">
-                  <Phone className="w-5 h-5 mr-3" />
-                  <span>{profile.phone || '—'}</span>
-                </div>
-
-                {profile.birthdate && (
-                  <div className="flex items-center text-gray-600">
-                    <Calendar className="w-5 h-5 mr-3" />
-                    <span>
-                      {new Date(profile.birthdate).toLocaleDateString(
-                        language === 'uz' ? 'uz-UZ' : 'ru-RU'
-                      )}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center text-gray-600">
-                  <Award className="w-5 h-5 mr-3" />
-                  <span>
-                    {profile.experience} {t.experience}
-                  </span>
-                </div>
-
-                {profile.social_media?.platforms?.length > 0 && (
-                  <div className="flex items-center gap-4 mt-4">
-                    {profile.social_media.platforms.map((social, index) => (
-                      <a
-                        key={index}
-                        href={social.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-gray-600 hover:text-indigo-600"
-                      >
-                        <LinkIcon className="w-5 h-5" />
-                        <span>{social.platform}</span>
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <ProfileInfo
+            profile={profile}
+            onEdit={() => setShowEditModal(true)}
+          />
 
           <CertificatesSection
             certificates={certificates}
@@ -288,24 +204,25 @@ export const Profile: React.FC = () => {
             loading={loading}
           />
 
-          <div className="border-t border-gray-200">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-medium text-gray-900">
-                  {t.services}
-                </h3>
-                <button
-                  onClick={() => setShowServiceModal(true)}
-                  className="flex items-center gap-2 text-indigo-600 hover:text-indigo-500"
-                >
-                  <Settings className="w-5 h-5" />
-                  <span>{t.addService}</span>
-                </button>
-              </div>
+          <LoyaltyProgramsSection
+            dentistId={profile.id}
+            onRefresh={handleUpdateProfile}
+          />
 
-              <ServicesList services={services} />
-            </div>
-          </div>
+          <ReferralSection
+            dentistId={profile.id}
+            onRefresh={handleUpdateProfile}
+          />
+
+          <TelegramBotSettings
+            dentistId={profile.id}
+            onRefresh={handleUpdateProfile}
+          />
+
+          <ProfileServices
+            services={services}
+            onAddService={() => setShowServiceModal(true)}
+          />
         </div>
       </div>
 
@@ -335,5 +252,3 @@ export const Profile: React.FC = () => {
     </div>
   );
 };
-
-export default Profile;

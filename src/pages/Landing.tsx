@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { Header } from '../components/landing/Header';
 import { Hero } from '../components/landing/Hero';
 import { AppointmentFeature } from '../components/features/AppointmentFeature';
@@ -14,7 +16,23 @@ import { FooterFeature } from '../components/features/FooterFeature';
 import { DemoBookingModal } from '../components/landing/DemoBookingModal';
 
 export const Landing: React.FC = () => {
+  const navigate = useNavigate();
   const [showDemoModal, setShowDemoModal] = useState(false);
+
+  useEffect(() => {
+    checkUser();
+  }, []);
+
+  const checkUser = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen">

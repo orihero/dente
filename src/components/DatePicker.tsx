@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLanguageStore } from '../store/languageStore';
+import { translations } from '../i18n/translations';
 
 interface DatePickerProps {
   value: string;
@@ -9,30 +10,26 @@ interface DatePickerProps {
 
 export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, className = '' }) => {
   const { language } = useLanguageStore();
+  const t = translations[language].common;
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
   
-  // Bilingual month names
-  const months = [
-    { value: '01', uz: 'Yanvar', ru: 'Январь' },
-    { value: '02', uz: 'Fevral', ru: 'Февраль' },
-    { value: '03', uz: 'Mart', ru: 'Март' },
-    { value: '04', uz: 'Aprel', ru: 'Апрель' },
-    { value: '05', uz: 'May', ru: 'Май' },
-    { value: '06', uz: 'Iyun', ru: 'Июнь' },
-    { value: '07', uz: 'Iyul', ru: 'Июль' },
-    { value: '08', uz: 'Avgust', ru: 'Август' },
-    { value: '09', uz: 'Sentabr', ru: 'Сентябрь' },
-    { value: '10', uz: 'Oktabr', ru: 'Октябрь' },
-    { value: '11', uz: 'Noyabr', ru: 'Ноябрь' },
-    { value: '12', uz: 'Dekabr', ru: 'Декабрь' }
-  ];
-
+  // Parse current value
   const [selectedDate, setSelectedDate] = React.useState(() => {
     if (!value) return { day: '', month: '', year: '' };
     const [year, month, day] = value.split('-');
     return { day, month, year };
   });
+
+  // Update internal state when value prop changes
+  useEffect(() => {
+    if (value) {
+      const [year, month, day] = value.split('-');
+      setSelectedDate({ day, month, year });
+    } else {
+      setSelectedDate({ day: '', month: '', year: '' });
+    }
+  }, [value]);
 
   const handleChange = (field: 'day' | 'month' | 'year', value: string) => {
     const newDate = { ...selectedDate, [field]: value };
@@ -46,19 +43,18 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, classNa
         0
       ).getDate();
 
-      if (parseInt(newDate.day) > daysInMonth) {
-        newDate.day = daysInMonth.toString().padStart(2, '0');
-      }
+      let day = parseInt(newDate.day);
+      if (isNaN(day) || day < 1) day = 1;
+      if (day > daysInMonth) day = daysInMonth;
 
-      onChange(`${newDate.year}-${newDate.month}-${newDate.day}`);
+      onChange(`${newDate.year}-${newDate.month}-${day.toString().padStart(2, '0')}`);
     }
   };
 
-  const validateDay = (value: string) => {
-    const day = parseInt(value);
-    if (isNaN(day) || day < 1) return '01';
-    if (day > 31) return '31';
-    return day.toString().padStart(2, '0');
+  const handleDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Allow only numbers and limit to 2 digits
+    const value = e.target.value.replace(/\D/g, '').slice(0, 2);
+    handleChange('day', value);
   };
 
   return (
@@ -66,29 +62,31 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, classNa
       <input
         type="text"
         value={selectedDate.day}
-        onChange={(e) => handleChange('day', validateDay(e.target.value))}
-        placeholder={language === 'uz' ? 'Kun' : 'День'}
+        onChange={handleDayChange}
+        placeholder={t.day}
         className="w-16 px-2 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-        maxLength={2}
       />
       <select
         value={selectedDate.month}
         onChange={(e) => handleChange('month', e.target.value)}
-        className="flex-1 px-2 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+        className="w-32 px-2 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
       >
-        <option value="">{language === 'uz' ? 'Oy' : 'Месяц'}</option>
-        {months.map((month) => (
-          <option key={month.value} value={month.value}>
-            {language === 'uz' ? month.uz : month.ru}
-          </option>
-        ))}
+        <option value="">{t.month}</option>
+        {[...Array(12)].map((_, i) => {
+          const monthNum = i + 1;
+          return (
+            <option key={monthNum} value={monthNum.toString().padStart(2, '0')}>
+              {t.months[monthNum as keyof typeof t.months]}
+            </option>
+          );
+        })}
       </select>
       <select
         value={selectedDate.year}
         onChange={(e) => handleChange('year', e.target.value)}
-        className="w-24 px-2 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+        className="flex-1 px-2 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
       >
-        <option value="">{language === 'uz' ? 'Yil' : 'Год'}</option>
+        <option value="">{t.year}</option>
         {years.map((year) => (
           <option key={year} value={year}>
             {year}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { supabase } from '../../../lib/supabase';
+import { CurrencyInput } from '../../../components/CurrencyInput';
 
 interface PaymentModalProps {
   showModal: boolean;
@@ -21,7 +22,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 }) => {
   const { language } = useLanguageStore();
   const t = translations[language].users;
-  const [records, setRecords] = useState([]);
+  const [records, setRecords] = useState<any[]>([]);
+  const [showRecordSelect, setShowRecordSelect] = useState(false);
   const [data, setData] = useState({
     record_id: '',
     amount: '',
@@ -44,7 +46,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setRecords(data || []);
+
+      if (data && data.length > 0) {
+        setRecords(data);
+        // Automatically select the latest record
+        setData(prev => ({ ...prev, record_id: data[0].id }));
+      }
     } catch (error) {
       console.error('Error fetching records:', error);
     }
@@ -73,6 +80,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     return String(num).padStart(6, '0');
   };
 
+  const selectedRecord = records.find(record => record.id === data.record_id);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg w-full max-w-md">
@@ -84,35 +93,55 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Record
-            </label>
-            <select
-              required
-              value={data.record_id}
-              onChange={(e) => setData({ ...data, record_id: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="">Select record</option>
-              {records.map((record: any) => (
-                <option key={record.id} value={record.id}>
-                  #{formatRecordNumber(record.record_number)} - {record.diagnosis.substring(0, 50)}...
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Record
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowRecordSelect(!showRecordSelect)}
+                className="text-sm text-indigo-600 hover:text-indigo-500 flex items-center gap-1"
+              >
+                <span>{showRecordSelect ? 'Hide' : 'Change'}</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showRecordSelect ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+            {showRecordSelect ? (
+              <select
+                required
+                value={data.record_id}
+                onChange={(e) => setData({ ...data, record_id: e.target.value })}
+                className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="">Select record</option>
+                {records.map((record) => (
+                  <option key={record.id} value={record.id}>
+                    #{formatRecordNumber(record.record_number)} - {record.diagnosis.substring(0, 50)}...
+                  </option>
+                ))}
+              </select>
+            ) : selectedRecord && (
+              <div className="bg-gray-50 p-3 rounded-md">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium">#{formatRecordNumber(selectedRecord.record_number)}</p>
+                    <p className="text-sm text-gray-600 mt-1">{selectedRecord.diagnosis}</p>
+                  </div>
+                  <p className="font-medium text-red-600">
+                    {selectedRecord.total_price.toLocaleString()} UZS
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t.amount}
             </label>
-            <input
-              type="number"
-              required
-              min="0"
+            <CurrencyInput
               value={data.amount}
-              onChange={(e) => setData({ ...data, amount: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              onChange={(value) => setData({ ...data, amount: value })}
             />
           </div>
 
@@ -160,7 +189,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !data.record_id || !data.amount || !data.payment_type}
               className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
             >
               {loading ? t.creating : t.create}

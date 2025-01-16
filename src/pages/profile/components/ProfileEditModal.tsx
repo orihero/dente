@@ -40,17 +40,20 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
       setData({
-        full_name: profile.full_name,
-        phone: profile.phone,
+        full_name: profile.full_name || '',
+        phone: profile.phone || '',
         birthdate: profile.birthdate || '',
-        experience: profile.experience.toString(),
+        experience: profile.experience?.toString() || '0',
         photo_url: profile.photo_url || '',
         social_media: profile.social_media?.platforms || []
       });
+      setPreviewUrl(profile.photo_url || '');
     }
   }, [profile]);
 
@@ -62,19 +65,27 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
+        setError('File size must be less than 5MB');
         return;
       }
 
       // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('File must be an image');
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setError('File must be JPEG, PNG, or WebP');
         return;
       }
 
       setPhotoFile(file);
-      setData({ ...data, photo_url: URL.createObjectURL(file) });
+      setPreviewUrl(URL.createObjectURL(file));
+      setError(null);
     }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPreviewUrl('');
+    setData({ ...data, photo_url: '' });
   };
 
   const handleAddSocial = () => {
@@ -100,6 +111,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
+    setError(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
@@ -136,8 +148,8 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         .update({
           full_name: data.full_name,
           phone: data.phone,
-          birthdate: data.birthdate,
-          experience: parseInt(data.experience),
+          birthdate: data.birthdate || null,
+          experience: parseInt(data.experience) || 0,
           photo_url: photoUrl,
           social_media: { platforms: data.social_media }
         })
@@ -146,8 +158,9 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
       if (error) throw error;
       await onSubmit();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
+      setError(error.message || 'Failed to update profile');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -163,16 +176,32 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border-b">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="flex justify-center">
             <div className="relative group">
               <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100">
-                {data.photo_url ? (
-                  <img
-                    src={data.photo_url}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
+                {previewUrl ? (
+                  <div className="relative w-full h-full">
+                    <img
+                      src={previewUrl}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="absolute top-0 right-0 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
                     <Upload className="w-8 h-8" />
@@ -189,12 +218,30 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={handlePhotoSelect}
                 className="hidden"
               />
             </div>
           </div>
+
+          {uploadProgress > 0 && (
+            <div className="relative pt-1">
+              <div className="flex mb-2 items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold inline-block text-indigo-600">
+                    {Math.round(uploadProgress)}% Complete
+                  </span>
+                </div>
+              </div>
+              <div className="overflow-hidden h-2 text-xs flex rounded bg-indigo-200">
+                <div
+                  style={{ width: `${uploadProgress}%` }}
+                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500 transition-all duration-300"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-6">
             <div>
@@ -287,24 +334,6 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               ))}
             </div>
           </div>
-
-          {uploadProgress > 0 && (
-            <div className="relative pt-1">
-              <div className="flex mb-2 items-center justify-between">
-                <div>
-                  <span className="text-xs font-semibold inline-block text-indigo-600">
-                    {Math.round(uploadProgress)}% Complete
-                  </span>
-                </div>
-              </div>
-              <div className="overflow-hidden h-2 text-xs flex rounded bg-indigo-200">
-                <div
-                  style={{ width: `${uploadProgress}%` }}
-                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500 transition-all duration-300"
-                />
-              </div>
-            </div>
-          )}
 
           <div className="flex gap-4 pt-4">
             <button

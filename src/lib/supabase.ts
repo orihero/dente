@@ -1,7 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Helper function to get environment variables
+const getEnvVar = (key: string): string => {
+  // Check if we're in the browser
+  if (typeof window !== 'undefined') {
+    // @ts-ignore - Vite's import.meta.env is available in browser
+    return import.meta.env[key] || '';
+  }
+  // Node.js environment
+  return process.env[key] || '';
+};
+
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please connect to Supabase first.');
@@ -12,7 +23,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storage: window.localStorage
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined
   },
   realtime: {
     params: {

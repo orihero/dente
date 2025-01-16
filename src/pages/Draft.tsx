@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Header } from '../components/Header';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { ApplyServiceModal } from './users/components/ApplyServiceModal';
-import { ResponsiveTeethSvg } from '../components/ResponsiveTeethSvg';
-import { Plus } from 'lucide-react';
+import { useLanguageStore } from '../store/languageStore';
+import { translations } from '../i18n/translations';
+import { TeethDiagram } from './draft/components/TeethDiagram';
+import { SelectedTeethBar } from './draft/components/SelectedTeethBar';
+import { AppliedServicesList } from './draft/components/AppliedServicesList';
+import { CreateRecordForm } from './draft/components/CreateRecordForm';
 
 interface SelectedTooth {
   id: string;
@@ -26,38 +30,60 @@ interface ToothService {
 const STORAGE_KEY = 'tooth_services';
 
 const Draft: React.FC = () => {
+  const { language } = useLanguageStore();
+  const t = translations[language].draft;
   const [selectedTeeth, setSelectedTeeth] = useState<SelectedTooth[]>([]);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [toothServices, setToothServices] = useState<ToothService[]>([]);
+  const [selectedServices, setSelectedServices] = useState<any[]>([]);
 
-  // Load tooth services from local storage on mount
   useEffect(() => {
+    // Load tooth services from local storage on mount
     const savedServices = localStorage.getItem(STORAGE_KEY);
     if (savedServices) {
       const parsedServices = JSON.parse(savedServices);
       setToothServices(parsedServices);
       
       // Apply colors to teeth that have services
-      parsedServices.forEach((item: ToothService) => {
-        const element = document.getElementById(`click${item.toothId}`);
-        if (element) {
-          const paths = Array.from(element.children).filter(child => 
-            child.tagName.toLowerCase() === 'path'
-          ) as SVGPathElement[];
-          
-          const lastTwo = paths.slice(-2);
-          // Use the color of the first service in the list
-          if (item.services.length > 0) {
-            const color = item.services[0].categoryColor;
-            lastTwo.forEach(path => {
-              path.style.fill = color;
-            });
-          }
-        }
-      });
+      applyTeethColors(parsedServices);
     }
   }, []);
+
+  // Helper function to apply colors to teeth
+  const applyTeethColors = (services: ToothService[]) => {
+    // First reset all teeth colors
+    const allTeethIds = Array.from({ length: 32 }, (_, i) => String(i + 1).padStart(2, '0'));
+    allTeethIds.forEach(id => {
+      const element = document.getElementById(`click${id}`);
+      if (element) {
+        const paths = Array.from(element.children).filter(child => 
+          child.tagName.toLowerCase() === 'path'
+        ) as SVGPathElement[];
+        
+        const lastTwo = paths.slice(-2);
+        lastTwo.forEach(path => {
+          path.style.fill = '#FAFAFA';
+        });
+      }
+    });
+
+    // Then apply colors for teeth with services
+    services.forEach(item => {
+      const element = document.getElementById(`click${item.toothId}`);
+      if (element && item.services.length > 0) {
+        const paths = Array.from(element.children).filter(child => 
+          child.tagName.toLowerCase() === 'path'
+        ) as SVGPathElement[];
+        
+        const lastTwo = paths.slice(-2);
+        const color = item.services[0].categoryColor;
+        lastTwo.forEach(path => {
+          path.style.fill = color;
+        });
+      }
+    });
+  };
 
   const handleTeethClick = (event: React.MouseEvent<SVGElement>) => {
     const element = event.target as SVGElement;
@@ -86,7 +112,7 @@ const Draft: React.FC = () => {
           path.style.fill = '#FAFAFA';
         });
       } else {
-        setSelectedTeeth(prev => [...prev, { id: toothId, name: `Tooth ${toothId}` }]);
+        setSelectedTeeth(prev => [...prev, { id: toothId, name: `${t.tooth} ${toothId}` }]);
         
         // Highlight tooth
         const paths = Array.from(parentElement.children).filter(child => 
@@ -101,11 +127,26 @@ const Draft: React.FC = () => {
     }
   };
 
-  const handleServiceApply = (services: any[]) => {
+  const handleServiceSelect = (service: any) => {
+    setSelectedServices(prev => {
+      const exists = prev.some(s => s.id === service.id);
+      if (exists) {
+        return prev.filter(s => s.id !== service.id);
+      }
+      return [...prev, service];
+    });
+  };
+
+  const handleServiceApply = () => {
+    if (selectedServices.length === 0) {
+      setShowServiceModal(true);
+      return;
+    }
+
     // Create new tooth-service mappings
     const newMappings = selectedTeeth.map(tooth => ({
       toothId: tooth.id,
-      services: services.map(service => ({
+      services: selectedServices.map(service => ({
         ...service,
         categoryId: service.categoryId,
         categoryColor: service.categoryColor
@@ -120,22 +161,46 @@ const Draft: React.FC = () => {
     // Update tooth colors
     selectedTeeth.forEach(tooth => {
       const element = document.getElementById(`click${tooth.id}`);
-      if (element && services.length > 0) {
+      if (element && selectedServices.length > 0) {
         const paths = Array.from(element.children).filter(child => 
           child.tagName.toLowerCase() === 'path'
         ) as SVGPathElement[];
         
         const lastTwo = paths.slice(-2);
-        const color = services[0].categoryColor;
+        const color = selectedServices[0].categoryColor;
         lastTwo.forEach(path => {
           path.style.fill = color;
         });
       }
     });
 
-    // Clear selected teeth
+    // Clear selected teeth and services
     setSelectedTeeth([]);
-    setShowServiceModal(false);
+    setSelectedServices([]);
+  };
+
+  const handleClearAll = () => {
+    // Clear all tooth colors
+    const allTeethIds = Array.from({ length: 32 }, (_, i) => String(i + 1).padStart(2, '0'));
+    allTeethIds.forEach(id => {
+      const element = document.getElementById(`click${id}`);
+      if (element) {
+        const paths = Array.from(element.children).filter(child => 
+          child.tagName.toLowerCase() === 'path'
+        ) as SVGPathElement[];
+        
+        const lastTwo = paths.slice(-2);
+        lastTwo.forEach(path => {
+          path.style.fill = '#FAFAFA';
+        });
+      }
+    });
+
+    // Clear local storage and state
+    localStorage.removeItem(STORAGE_KEY);
+    setToothServices([]);
+    setSelectedTeeth([]);
+    setSelectedServices([]);
   };
 
   return (
@@ -145,85 +210,38 @@ const Draft: React.FC = () => {
         setShowNotifications={setShowNotifications}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Selected Teeth Card */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Selected Teeth</h2>
-            {selectedTeeth.length === 0 ? (
-              <p className="text-gray-500">No teeth selected</p>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  {selectedTeeth.map((tooth) => (
-                    <div
-                      key={tooth.id}
-                      className="bg-gray-50 p-3 rounded-md flex items-center justify-between"
-                    >
-                      <span className="font-medium">Tooth {tooth.id}</span>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setShowServiceModal(true)}
-                  className="w-full mt-4 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  <span>Apply Services</span>
-                </button>
-              </div>
-            )}
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 mb-24">
+        <div className="space-y-4">
+          <TeethDiagram
+            onTeethClick={handleTeethClick}
+            onClearAll={handleClearAll}
+            onServiceSelect={handleServiceSelect}
+            selectedServices={selectedServices}
+          />
 
-          {/* Teeth SVG Card */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <ResponsiveTeethSvg onClick={handleTeethClick} />
-          </div>
+          <AppliedServicesList services={toothServices} />
+
+          {toothServices.length > 0 && (
+            <CreateRecordForm services={toothServices} onClearAll={handleClearAll} />
+          )}
         </div>
-
-        {/* Applied Services */}
-        {toothServices.length > 0 && (
-          <div className="mt-6 bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Applied Services</h2>
-            <div className="space-y-4">
-              {toothServices.map((item) => (
-                <div key={item.toothId} className="border-b pb-4">
-                  <h3 className="font-medium mb-2">Tooth {item.toothId}</h3>
-                  <div className="grid gap-2">
-                    {item.services.map((service, index) => (
-                      <div 
-                        key={index}
-                        className="p-3 rounded-md"
-                        style={{ backgroundColor: `${service.categoryColor}20` }}
-                      >
-                        <div className="flex justify-between">
-                          <span>{service.name}</span>
-                          <span className="font-medium">{service.price.toLocaleString()} UZS</span>
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          Duration: {service.duration} • Warranty: {service.warranty}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      <SelectedTeethBar
+        selectedTeeth={selectedTeeth}
+        onApplyServices={handleServiceApply}
+        disabled={selectedTeeth.length === 0}
+      />
 
       <BottomNavigation />
 
-      {showServiceModal && (
-        <ApplyServiceModal
-          showModal={showServiceModal}
-          onClose={() => setShowServiceModal(false)}
-          onApply={handleServiceApply}
-          selectedServices={[]}
-          modalTitle={`Apply services to ${selectedTeeth.length} teeth`}
-        />
-      )}
+      <ApplyServiceModal
+        showModal={showServiceModal}
+        onClose={() => setShowServiceModal(false)}
+        onApply={handleServiceApply}
+        selectedServices={[]}
+        modalTitle={`${selectedTeeth.length} ${t.applyToTeeth}`}
+      />
     </div>
   );
 };

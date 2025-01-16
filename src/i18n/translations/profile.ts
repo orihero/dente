@@ -16,7 +16,26 @@ export const profileTranslations = {
     saving: "Saqlanmoqda...",
     cancel: "Bekor qilish",
     logout: "Chiqish",
-    confirmLogout: "Tizimdan chiqishni xohlaysizmi?"
+    confirmLogout: "Tizimdan chiqishni xohlaysizmi?",
+    // Loyalty Programs translations
+    loyaltyPrograms: "Sodiqlik dasturlari",
+    addProgram: "Dastur qo'shish",
+    programName: "Dastur nomi",
+    description: "Tavsif",
+    startDate: "Boshlanish sanasi",
+    endDate: "Tugash sanasi",
+    percentage: "Chegirma foizi",
+    enabled: "Faol",
+    // Telegram Bot Settings translations
+    telegramBot: "Telegram bot",
+    botToken: "Bot tokeni",
+    botUsername: "Bot foydalanuvchi nomi",
+    botEnabled: "Bot faol",
+    botSettings: "Bot sozlamalari",
+    connectBot: "Botni ulash",
+    generateToken: "Token yaratish",
+    copyToken: "Tokeni nusxalash",
+    tokenCopied: "Token nusxalandi"
   },
   ru: {
     title: "Профиль",
@@ -35,6 +54,25 @@ export const profileTranslations = {
     saving: "Сохранение...",
     cancel: "Отмена",
     logout: "Выйти",
-    confirmLogout: "Вы действительно хотите выйти?"
+    confirmLogout: "Вы действительно хотите выйти?",
+    // Loyalty Programs translations
+    loyaltyPrograms: "Программы лояльности",
+    addProgram: "Добавить программу",
+    programName: "Название программы",
+    description: "Описание",
+    startDate: "Дата начала",
+    endDate: "Дата окончания",
+    percentage: "Процент скидки",
+    enabled: "Активна",
+    // Telegram Bot Settings translations
+    telegramBot: "Telegram бот",
+    botToken: "Токен бота",
+    botUsername: "Имя пользователя бота",
+    botEnabled: "Бот активен",
+    botSettings: "Настройки бота",
+    connectBot: "Подключить бота",
+    generateToken: "Создать токен",
+    copyToken: "Скопировать токен",
+    tokenCopied: "Токен скопирован"
   }
 };

@@ -7,12 +7,18 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bot:build": "tsc src/bot/index.ts --outDir dist/bot --esModuleInterop true --allowJs true --module NodeNext --moduleResolution NodeNext --target es2020 --noEmitOnError false --skipLibCheck true",
+    "bot": "npm run bot:build && node dist/bot/index.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run bot\""
   },
   "dependencies": {
     "@lottiefiles/react-lottie-player": "^3.5.3",
     "@supabase/supabase-js": "^2.39.7",
+    "concurrently": "^8.2.2",
+    "dotenv": "^16.4.7",
     "lucide-react": "^0.344.0",
+    "node-telegram-bot-api": "^0.65.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.51.0",
@@ -21,6 +27,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
+    "@types/node": "^20.11.16",
+    "@types/node-telegram-bot-api": "^0.64.2",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
