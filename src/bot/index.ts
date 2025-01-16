@@ -27,8 +27,7 @@ bot.on('message', (msg) => {
 });
 
 // Subscribe to leads table changes
-const leadsSubscription = supabase
-  .channel('leads-channel')
+const leadsChannel = supabase.channel('leads-channel')
   .on(
     'postgres_changes',
     {
@@ -44,13 +43,22 @@ const leadsSubscription = supabase
       
       try {
         // Send notification to the group
-        await bot.sendMessage(-4606764266, message, { parse_mode: 'HTML' });
+        await bot.sendMessage(-4606764266, message, { 
+          parse_mode: 'HTML',
+          disable_web_page_preview: true
+        });
       } catch (error) {
         console.error('Error sending lead notification:', error);
       }
     }
   )
-  .subscribe();
+  .subscribe((status, err) => {
+    if (err) {
+      console.error('Error subscribing to leads channel:', err);
+    } else {
+      console.log('Subscribed to leads channel:', status);
+    }
+  });
 
 // Helper function to format lead message
 function formatLeadMessage(lead: any) {

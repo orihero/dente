@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Header } from '../components/landing/Header';
 import { Hero } from '../components/landing/Hero';
@@ -17,10 +17,13 @@ import { DemoBookingModal } from '../components/landing/DemoBookingModal';
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [referredBy, setReferredBy] = useState<string | undefined>();
 
   useEffect(() => {
     checkUser();
+    checkReferral();
   }, []);
 
   const checkUser = async () => {
@@ -31,6 +34,19 @@ export const Landing: React.FC = () => {
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
+    }
+  };
+
+  const checkReferral = () => {
+    // Check if this is a referral URL
+    const match = location.pathname.match(/^\/refer\/([0-9a-f-]+)$/i);
+    if (match) {
+      const dentistId = match[1];
+      setReferredBy(dentistId);
+      // Redirect to home page but keep the referral info
+      navigate('/', { replace: true });
+      // Show demo modal automatically for referrals
+      setShowDemoModal(true);
     }
   };
 
@@ -52,6 +68,7 @@ export const Landing: React.FC = () => {
       <DemoBookingModal
         showModal={showDemoModal}
         onClose={() => setShowDemoModal(false)}
+        referredBy={referredBy}
       />
     </div>
   );
