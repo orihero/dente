@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Header } from '../components/landing/Header';
 import { Hero } from '../components/landing/Hero';
@@ -18,13 +18,33 @@ import { DemoBookingModal } from '../components/landing/DemoBookingModal';
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { dentistId } = useParams<{ dentistId?: string }>();
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [referredBy, setReferredBy] = useState<string | undefined>();
 
   useEffect(() => {
     checkUser();
-    checkReferral();
-  }, []);
+    
+    // Check for referral in URL path
+    const match = location.pathname.match(/\/refer\/([^\/]+)/);
+    if (match) {
+      const referralId = match[1];
+      setReferredBy(referralId);
+      setShowDemoModal(true);
+      // Navigate to root but preserve referral info in state
+      navigate('/', { 
+        replace: true,
+        state: { referredBy: referralId }
+      });
+    } else if (dentistId) {
+      setReferredBy(dentistId);
+      setShowDemoModal(true);
+      navigate('/', { 
+        replace: true,
+        state: { referredBy: dentistId }
+      });
+    }
+  }, [dentistId, location.pathname]);
 
   const checkUser = async () => {
     try {
@@ -34,19 +54,6 @@ export const Landing: React.FC = () => {
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
-    }
-  };
-
-  const checkReferral = () => {
-    // Check if this is a referral URL
-    const match = location.pathname.match(/^\/refer\/([0-9a-f-]+)$/i);
-    if (match) {
-      const dentistId = match[1];
-      setReferredBy(dentistId);
-      // Redirect to home page but keep the referral info
-      navigate('/', { replace: true });
-      // Show demo modal automatically for referrals
-      setShowDemoModal(true);
     }
   };
 

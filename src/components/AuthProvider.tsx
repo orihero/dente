@@ -24,8 +24,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Session error:', error);
-          setUser(null);
+          if (error.name === 'AuthApiError' && error.status === 400) {
+            // Clear any stored session data
+            await supabase.auth.signOut();
+            setUser(null);
+          } else {
+            console.error('Session error:', error);
+          }
           return;
         }
 
@@ -49,17 +54,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
         setUser(null);
-        // Only redirect to login if we're on a protected route
-        if (location.pathname !== '/' && !location.pathname.startsWith('/login')) {
+        // Only redirect to login if we're on a protected route and not a referral path
+        const isReferralPath = location.pathname.startsWith('/refer/') || 
+                             (location.state && location.state.referredBy);
+        if (location.pathname !== '/' && 
+            !location.pathname.startsWith('/login') && 
+            !isReferralPath) {
           navigate('/login');
         }
       } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setUser(session?.user ?? null);
+      } else if (event === 'INITIAL_SESSION') {
+        // Handle initial session check
         setUser(session?.user ?? null);
       }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate, location]);
 
   return (

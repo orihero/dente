@@ -16,6 +16,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/refer/:dentistId" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route
             path="/dashboard"
