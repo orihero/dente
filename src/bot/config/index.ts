@@ -15,5 +15,9 @@ export const config = {
   },
   telegram: {
     token: process.env.TELEGRAM_BOT_TOKEN || ''
+  },
+  sms: {
+    login: process.env.VITE_OPERSMS_LOGIN || '',
+    password: process.env.VITE_OPERSMS_PASSWORD || ''
   }
 };

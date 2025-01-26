@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, AlertCircle, FileText, Clock, Shield, Trash2, Edit2, Save, Image, FileImage, File } from 'lucide-react';
+import { X, AlertCircle, FileText, Clock, Shield, Trash2, Edit2, Save, Image, FileImage, File, Send } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { formatDateTime } from '../../../utils/dateUtils';
@@ -23,9 +23,12 @@ export const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sendingRecipe, setSendingRecipe] = useState(false);
   const [data, setData] = useState({
     diagnosis: record?.diagnosis || '',
-    total_price: record?.total_price || 0
+    total_price: record?.total_price || 0,
+    recipe: record?.recipe || '',
+    suggestions: record?.suggestions || ''
   });
 
   if (!showModal || !record) return null;
@@ -42,7 +45,9 @@ export const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
         .from('patient_records')
         .update({
           diagnosis: data.diagnosis,
-          total_price: data.total_price
+          total_price: data.total_price,
+          recipe: data.recipe,
+          suggestions: data.suggestions
         })
         .eq('id', record.id);
 
@@ -76,6 +81,34 @@ export const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
       setError(error.message || 'Failed to delete record');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendRecipe = async () => {
+    if (!record) return;
+    
+    setSendingRecipe(true);
+    try {
+      const { error } = await supabase.rpc('send_record_recipe', {
+        record_id: record.id
+      });
+
+      if (error) throw error;
+
+      alert(language === 'uz' 
+        ? 'Retsept muvaffaqiyatli yuborildi'
+        : 'Рецепт успешно отправлен'
+      );
+
+      await onRefresh();
+    } catch (error) {
+      console.error('Error sending recipe:', error);
+      alert(language === 'uz'
+        ? 'Xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko\'ring.'
+        : 'Произошла ошибка. Пожалуйста, попробуйте позже.'
+      );
+    } finally {
+      setSendingRecipe(false);
     }
   };
 
@@ -167,6 +200,38 @@ export const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
                   value={data.total_price}
                   onChange={(e) => setData({ ...data, total_price: Number(e.target.value) })}
                   className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {language === 'uz' ? 'Dori-darmonlar' : 'Лекарства'}
+                </label>
+                <textarea
+                  value={data.recipe}
+                  onChange={(e) => setData({ ...data, recipe: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder={language === 'uz' 
+                    ? 'Dori-darmonlar va qo\'llash bo\'yicha ko\'rsatmalar'
+                    : 'Лекарства и инструкции по применению'
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {language === 'uz' ? 'Tavsiyalar' : 'Рекомендации'}
+                </label>
+                <textarea
+                  value={data.suggestions}
+                  onChange={(e) => setData({ ...data, suggestions: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder={language === 'uz'
+                    ? 'Bemorga tavsiyalar'
+                    : 'Рекомендации пациенту'
+                  }
                 />
               </div>
 
@@ -280,6 +345,48 @@ export const RecordDetailsModal: React.FC<RecordDetailsModalProps> = ({
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {(record.recipe || record.suggestions) && (
+                <div className="space-y-4 border-t pt-4">
+                  {record.recipe && (
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-2">
+                        {language === 'uz' ? 'Dori-darmonlar' : 'Лекарства'}
+                      </h3>
+                      <p className="text-gray-700 whitespace-pre-line">{record.recipe}</p>
+                    </div>
+                  )}
+
+                  {record.suggestions && (
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-2">
+                        {language === 'uz' ? 'Tavsiyalar' : 'Рекомендации'}
+                      </h3>
+                      <p className="text-gray-700 whitespace-pre-line">{record.suggestions}</p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSendRecipe}
+                    disabled={sendingRecipe || record.recipe_sent}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md ${
+                      record.recipe_sent
+                        ? 'bg-green-100 text-green-800 cursor-not-allowed'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>
+                      {record.recipe_sent
+                        ? (language === 'uz' ? 'Yuborilgan' : 'Отправлено')
+                        : sendingRecipe
+                        ? (language === 'uz' ? 'Yuborilmoqda...' : 'Отправка...')
+                        : (language === 'uz' ? 'Retseptni yuborish' : 'Отправить рецепт')
+                      }
+                    </span>
+                  </button>
                 </div>
               )}
             </>

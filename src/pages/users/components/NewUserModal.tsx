@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
+import { PhoneInput } from '../../../components/PhoneInput';
 
 interface NewUserModalProps {
   showModal: boolean;
@@ -68,12 +69,9 @@ export const NewUserModal: React.FC<NewUserModalProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t.phone}
             </label>
-            <input
-              type="tel"
-              required
+            <PhoneInput
               value={data.phone}
-              onChange={(e) => setData({ ...data, phone: e.target.value })}
-              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              onChange={(value) => setData({ ...data, phone: value })}
             />
           </div>
 

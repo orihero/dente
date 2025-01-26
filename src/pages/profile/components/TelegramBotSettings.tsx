@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bot, Copy, ChevronDown } from 'lucide-react';
+import { Bot, Copy, ChevronDown, ExternalLink } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { supabase } from '../../../lib/supabase';
@@ -17,31 +17,90 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
   const { language } = useLanguageStore();
   const t = translations[language].profile;
   const [isExpanded, setIsExpanded] = useState(false);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState({
+    enabled: false,
+    loyalty: {
+      birthday: {
+        enabled: false,
+        days_before: 0,
+        days_after: 0,
+        percentage: 0
+      }
+    },
+    referral: {
+      enabled: false,
+      percentage: 0,
+      days_active: 0
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [registrationToken, setRegistrationToken] = useState<string | null>(null);
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [telegramLink, setTelegramLink] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSettings();
-  }, [dentistId]);
+    if (isExpanded) {
+      fetchSettings();
+    }
+  }, [isExpanded]);
 
   const fetchSettings = async () => {
     try {
       const { data, error } = await supabase
         .from('dentists')
-        .select('telegram_bot_settings, telegram_bot_registered, telegram_registration_token')
+        .select('telegram_bot_settings, telegram_bot_registered, telegram_registration_token, telegram_link')
         .eq('id', dentistId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       
-      setSettings(data.telegram_bot_settings || {
-        enabled: false
+      setSettings(data?.telegram_bot_settings || {
+        enabled: false,
+        loyalty: {
+          birthday: {
+            enabled: false,
+            days_before: 0,
+            days_after: 0,
+            percentage: 0
+          }
+        },
+        referral: {
+          enabled: false,
+          percentage: 0,
+          days_active: 0
+        }
       });
-      setRegistrationToken(data.telegram_registration_token);
+      setRegistrationToken(data?.telegram_registration_token);
+      setTelegramLink(data?.telegram_link);
     } catch (error) {
       console.error('Error fetching settings:', error);
+    }
+  };
+
+  const handleUpdateSettings = async (newSettings: any) => {
+    try {
+      setLoading(true);
+      
+      const { error: updateError } = await supabase
+        .from('dentists')
+        .update({
+          telegram_bot_settings: newSettings
+        })
+        .eq('id', dentistId);
+
+      if (updateError) throw updateError;
+      
+      setSettings(newSettings);
+      await onRefresh();
+
+      // If enabling the bot and no link exists, generate one
+      if (newSettings.enabled && !telegramLink) {
+        await generateToken();
+      }
+    } catch (error) {
+      console.error('Error updating settings:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,25 +108,29 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
     try {
       setLoading(true);
       
-      // First, enable the bot
-      const { error: updateError } = await supabase
-        .from('dentists')
-        .update({
-          telegram_bot_settings: { ...settings, enabled: true }
-        })
-        .eq('id', dentistId);
+      // First, enable the bot if not already enabled
+      if (!settings.enabled) {
+        const newSettings = { ...settings, enabled: true };
+        const { error: updateError } = await supabase
+          .from('dentists')
+          .update({
+            telegram_bot_settings: newSettings
+          })
+          .eq('id', dentistId);
 
-      if (updateError) throw updateError;
+        if (updateError) throw updateError;
+        setSettings(newSettings);
+      }
 
-      // Then generate token
-      const { data, error } = await supabase
-        .rpc('generate_telegram_registration_token', {
+      // Generate token and link
+      const { data: link, error } = await supabase
+        .rpc('generate_telegram_link', {
           dentist_id: dentistId
         });
 
       if (error) throw error;
       
-      // Fetch updated settings to get the new token
+      // Fetch updated settings to get the new link
       await fetchSettings();
     } catch (error) {
       console.error('Error generating token:', error);
@@ -76,20 +139,17 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
     }
   };
 
-  const copyToken = async () => {
-    if (!registrationToken) return;
+  const copyLink = async () => {
+    if (!telegramLink) return;
     
     try {
-      const botLink = `https://t.me/denteuzbot?start=${registrationToken}`;
-      await navigator.clipboard.writeText(botLink);
+      await navigator.clipboard.writeText(telegramLink);
       setTokenCopied(true);
       setTimeout(() => setTokenCopied(false), 2000);
     } catch (error) {
-      console.error('Error copying token:', error);
+      console.error('Error copying link:', error);
     }
   };
-
-  if (!settings) return null;
 
   return (
     <div className="border-t border-gray-200">
@@ -98,9 +158,12 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            {t.telegramBot}
-          </h3>
+          <div className="flex items-center gap-2">
+            <Bot className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-lg font-medium text-gray-900">
+              {t.telegramBot}
+            </h3>
+          </div>
           <ChevronDown 
             className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${
               isExpanded ? 'transform rotate-180' : ''
@@ -118,11 +181,12 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
                 <span className="font-medium">{t.botEnabled}</span>
               </div>
               <Switch
-                checked={settings.enabled || false}
+                checked={settings.enabled}
                 onChange={async (checked) => {
                   const newSettings = { ...settings, enabled: checked };
-                  await updateSettings(newSettings);
+                  await handleUpdateSettings(newSettings);
                 }}
+                disabled={loading}
               />
             </div>
 
@@ -131,20 +195,28 @@ export const TelegramBotSettings: React.FC<TelegramBotSettingsProps> = ({
                 {/* Token Generation */}
                 <div className="border-t pt-4">
                   <div className="space-y-4">
-                    {registrationToken ? (
+                    {telegramLink ? (
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
-                          value={`https://t.me/denteuzbot?start=${registrationToken}`}
+                          value={telegramLink}
                           readOnly
                           className="flex-1 px-3 py-2 border rounded-md bg-gray-50"
                         />
                         <button
-                          onClick={copyToken}
+                          onClick={copyLink}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-md"
                         >
                           <Copy className="w-5 h-5" />
                         </button>
+                        <a
+                          href={telegramLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-md"
+                        >
+                          <ExternalLink className="w-5 h-5" />
+                        </a>
                       </div>
                     ) : (
                       <button

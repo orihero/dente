@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Calendar, Plus } from 'lucide-react';
+import { Phone, Calendar, Plus, Send } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { supabase } from '../../../lib/supabase';
@@ -12,6 +12,7 @@ interface User {
   phone: string;
   birthdate: string;
   balance?: number;
+  telegram_registered?: boolean;
 }
 
 interface UserListProps {
@@ -26,6 +27,7 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchBalances();
@@ -98,6 +100,43 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
     }
   };
 
+  const handleTelegramInvite = async (user: User) => {
+    setGeneratingLink(prev => ({ ...prev, [user.id]: true }));
+    try {
+      const { data, error } = await supabase
+        .rpc('generate_telegram_registration_token', {
+          patient_id: user.id
+        });
+
+      if (error) throw error;
+
+      if (!data) throw new Error('Failed to generate token');
+
+      const inviteLink = `https://t.me/denteuzbot?start=${data}`;
+      await navigator.clipboard.writeText(inviteLink);
+      alert(language === 'uz' ? 'Havola nusxalandi!' : 'Ссылка скопирована!');
+    } catch (error: any) {
+      console.error('Error generating Telegram invite:', error);
+      alert(language === 'uz' 
+        ? 'Xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko\'ring.' 
+        : 'Произошла ошибка. Пожалуйста, попробуйте позже.');
+    } finally {
+      setGeneratingLink(prev => ({ ...prev, [user.id]: false }));
+    }
+  };
+
+  const formatPhoneNumber = (phone: string) => {
+    // Format as +998 XX XXX XX XX for display
+    const digits = phone.replace(/\D/g, '');
+    let formatted = '';
+    if (digits.length > 0) formatted += '+' + digits.substring(0, 3); // +998
+    if (digits.length > 3) formatted += ' ' + digits.substring(3, 5);
+    if (digits.length > 5) formatted += ' ' + digits.substring(5, 8);
+    if (digits.length > 8) formatted += ' ' + digits.substring(8, 10);
+    if (digits.length > 10) formatted += ' ' + digits.substring(10, 12);
+    return formatted;
+  };
+
   if (users.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -112,7 +151,8 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
         {users.map((user) => (
           <div
             key={user.id}
-            className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-indigo-200 transition-colors"
+            className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-indigo-200 transition-colors cursor-pointer"
+            onClick={() => navigate(`/users/${user.id}`)}
           >
             <div className="flex justify-between items-start mb-4">
               <div className="flex-1">
@@ -122,7 +162,7 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
                 <div className="space-y-2 mt-2">
                   <div className="flex items-center text-gray-600">
                     <Phone className="w-4 h-4 mr-2" />
-                    <span className="text-sm">{user.phone}</span>
+                    <span className="text-sm">{formatPhoneNumber(user.phone)}</span>
                   </div>
                   <div className="flex items-center text-gray-600">
                     <Calendar className="w-4 h-4 mr-2" />
@@ -135,16 +175,39 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  setSelectedUser(user);
-                  setShowPaymentModal(true);
-                }}
-                className="flex items-center gap-1 text-indigo-600 hover:text-indigo-500 px-2 py-1 rounded-md hover:bg-indigo-50"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="text-sm">{t.addPayment}</span>
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent navigation
+                    setSelectedUser(user);
+                    setShowPaymentModal(true);
+                  }}
+                  className="flex items-center gap-1 text-indigo-600 hover:text-indigo-500 px-2 py-1 rounded-md hover:bg-indigo-50"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="text-sm">{t.addPayment}</span>
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent navigation
+                    handleTelegramInvite(user);
+                  }}
+                  disabled={generatingLink[user.id] || user.telegram_registered}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md ${
+                    user.telegram_registered
+                      ? 'text-green-600 hover:bg-green-50'
+                      : 'text-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  <Send className="w-4 h-4" />
+                  <span className="text-sm">
+                    {user.telegram_registered
+                      ? (language === 'uz' ? 'Ulangan' : 'Подключен')
+                      : (language === 'uz' ? 'Telegram' : 'Телеграм')}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t">

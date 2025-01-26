@@ -6,6 +6,8 @@ import { translations } from '../../../i18n/translations';
 import { PhoneInput } from '../../../components/PhoneInput';
 import { DatePicker } from '../../../components/DatePicker';
 import { CurrencyInput } from '../../../components/CurrencyInput';
+import { sendSMS } from '../../../lib/sms';
+import { smsTemplates } from '../../../utils/smsTemplates';
 
 interface ToothService {
   toothId: string;
@@ -54,15 +56,21 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
   // Check for existing patient when phone number is entered
   useEffect(() => {
     const checkPatient = async () => {
-      if (data.phone.replace(/\D/g, '').length === 12) { // Complete phone number
+      // Only proceed if we have a complete phone number
+      if (data.phone.replace(/\D/g, '').length === 12) {
         try {
+          // Normalize phone number by removing all non-digit characters
+          const normalizedPhone = "+" + data.phone.replace(/\D/g, '');
+          
           const { data: patients, error } = await supabase
             .from('patients')
             .select('*')
-            .eq('phone', data.phone)
-            .single();
+            .eq('phone', normalizedPhone)
+            .maybeSingle();
 
-          if (error) throw error;
+          if (error && error.code !== 'PGRST116') {
+            throw error;
+          }
 
           if (patients) {
             setData(prev => ({
@@ -90,16 +98,21 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
+      // Normalize phone number by removing all non-digit characters
+      const normalizedPhone = data.phone.replace(/\D/g, '');
+
       // First create or get patient
       let patientId: string;
+      let isNewPatient = false;
 
+      // Check for existing patient
       const { data: existingPatient, error: patientError } = await supabase
         .from('patients')
-        .select('id')
-        .eq('phone', data.phone)
-        .single();
+        .select('id, telegram_registered, full_name')
+        .eq('phone', normalizedPhone)
+        .maybeSingle();
 
-      if (patientError && patientError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      if (patientError && patientError.code !== 'PGRST116') {
         throw patientError;
       }
 
@@ -112,7 +125,7 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
           .insert({
             dentist_id: user.id,
             full_name: data.full_name,
-            phone: data.phone,
+            phone: normalizedPhone,
             birthdate: data.birthdate,
             address: data.address
           })
@@ -121,6 +134,7 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
 
         if (createError) throw createError;
         patientId = newPatient.id;
+        isNewPatient = true;
       }
 
       // Create record
@@ -137,6 +151,24 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
 
       if (recordError) throw recordError;
 
+      // First fetch all dentist services to ensure they exist
+      const { data: dentistServices, error: servicesError } = await supabase
+        .from('dentist_services')
+        .select('id')
+        .in('id', services.flatMap(ts => ts.services.map(s => s.id)));
+
+      if (servicesError) throw servicesError;
+
+      // Verify all services exist
+      const existingServiceIds = new Set(dentistServices.map(ds => ds.id));
+      const allServicesExist = services.every(ts => 
+        ts.services.every(s => existingServiceIds.has(s.id))
+      );
+
+      if (!allServicesExist) {
+        throw new Error('Some services no longer exist. Please refresh and try again.');
+      }
+
       // Create record services
       const recordServices = services.flatMap(toothService =>
         toothService.services.map(service => ({
@@ -147,11 +179,11 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
         }))
       );
 
-      const { error: servicesError } = await supabase
+      const { error: servicesInsertError } = await supabase
         .from('record_services')
         .insert(recordServices);
 
-      if (servicesError) throw servicesError;
+      if (servicesInsertError) throw servicesInsertError;
 
       // Create initial payment if provided
       if (data.initial_payment && data.payment_type) {
@@ -166,6 +198,34 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
           });
 
         if (paymentError) throw paymentError;
+      }
+
+      // Send SMS if patient is not registered in Telegram
+      if (!existingPatient?.telegram_registered) {
+        try {
+          // Generate registration token
+          const { data: token, error: tokenError } = await supabase
+            .rpc('generate_telegram_registration_token', {
+              patient_id: patientId
+            });
+
+          if (tokenError) throw tokenError;
+
+          // Create SMS text
+          const template = smsTemplates.recordCreated[language];
+          const smsText = template
+            .replace('{{name}}', data.full_name)
+            .replace('{{link}}', `https://t.me/denteuzbot?start=${token}`);
+
+          // Send SMS
+          await sendSMS({
+            phone: normalizedPhone,
+            text: smsText
+          });
+        } catch (error) {
+          console.error('Error sending SMS:', error);
+          // Don't throw error here to allow record creation to complete
+        }
       }
 
       // Clear form and services

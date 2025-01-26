@@ -5,6 +5,7 @@ import { profileTranslations } from './translations/profile';
 import { draftTranslations } from './translations/draft';
 import { commonTranslations } from './translations/common';
 import { landingTranslations } from './translations/landing';
+import { navigationTranslations } from './translations/navigation';
 
 export const translations = {
   uz: {
@@ -14,7 +15,8 @@ export const translations = {
     profile: profileTranslations.uz,
     draft: draftTranslations.uz,
     common: commonTranslations.uz,
-    landing: landingTranslations.uz
+    landing: landingTranslations.uz,
+    navigation: navigationTranslations.uz
   },
   ru: {
     home: homeTranslations.ru,
@@ -23,6 +25,7 @@ export const translations = {
     profile: profileTranslations.ru,
     draft: draftTranslations.ru,
     common: commonTranslations.ru,
-    landing: landingTranslations.ru
+    landing: landingTranslations.ru,
+    navigation: navigationTranslations.ru
   }
 };

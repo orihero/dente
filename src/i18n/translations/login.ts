@@ -5,7 +5,9 @@ export const loginTranslations = {
     password: "Parol",
     loginButton: "Kirish",
     forgotPassword: "Parolni unutdingizmi?",
-    invalidCredentials: "Email yoki parol noto'g'ri"
+    invalidCredentials: "Email yoki parol noto'g'ri",
+    back: "Orqaga",
+    loading: "Yuklanmoqda..."
   },
   ru: {
     title: "Вход в систему",
@@ -13,6 +15,8 @@ export const loginTranslations = {
     password: "Пароль",
     loginButton: "Войти",
     forgotPassword: "Забыли пароль?",
-    invalidCredentials: "Неверный email или пароль"
+    invalidCredentials: "Неверный email или пароль",
+    back: "Назад",
+    loading: "Загрузка..."
   }
 };

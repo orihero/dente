@@ -1,7 +1,8 @@
 import { Message } from 'node-telegram-bot-api';
 import { supabase } from '../services/supabase.js';
 import { stateManager } from '../services/state.js';
-import { birthdateRequestMessage } from '../messages.js';
+import { translations } from '../i18n/translations.js';
+import { getMainMenuKeyboard } from './menu.js';
 
 export const handleContact = async (bot: any, msg: Message) => {
   if (!msg.contact) return;
@@ -9,76 +10,65 @@ export const handleContact = async (bot: any, msg: Message) => {
   const chatId = msg.chat.id;
   const userState = stateManager.get(chatId);
   if (!userState || !userState.language) return;
+  
+  const t = translations[userState.language.code];
 
   try {
     // Check if this phone number is associated with any patient
-    const { data: patients, error } = await supabase
+    const { data: existingPatient, error: patientError } = await supabase
       .from('patients')
       .select('*')
-      .eq('phone', msg.contact.phone_number);
+      .eq('phone', msg.contact.phone_number)
+      .maybeSingle();
 
-    if (error) throw error;
+    if (patientError && patientError.code !== 'PGRST116') {
+      throw patientError;
+    }
 
-    // If patient found
-    if (patients && patients.length > 0) {
-      await handleExistingPatient(bot, chatId, patients[0], userState.language.code);
+    if (existingPatient) {
+      // Update existing patient with telegram info
+      const { error: updateError } = await supabase
+        .from('patients')
+        .update({
+          telegram_chat_id: chatId.toString(),
+          telegram_registered: true
+        })
+        .eq('id', existingPatient.id);
+
+      if (updateError) throw updateError;
+
+      // Send welcome back message
+      await bot.sendMessage(
+        chatId,
+        userState.language.code === 'uz'
+          ? `Xush kelibsiz, ${existingPatient.full_name}!`
+          : `Добро пожаловать, ${existingPatient.full_name}!`,
+        { 
+          parse_mode: 'MarkdownV2',
+          reply_markup: getMainMenuKeyboard(userState.language.code)
+        }
+      );
     } else {
-      await handleNewPatient(bot, chatId, msg.contact, userState);
+      // Start registration process for new patient
+      stateManager.update(chatId, {
+        step: 'BIRTHDATE_REQUEST',
+        registrationData: {
+          full_name: msg.contact.first_name + (msg.contact.last_name ? ' ' + msg.contact.last_name : ''),
+          phone: msg.contact.phone_number
+        }
+      });
+
+      // Request birthdate
+      await bot.sendMessage(
+        chatId,
+        t.registration.birthdateRequest,
+        { 
+          parse_mode: 'MarkdownV2',
+          reply_markup: { remove_keyboard: true }
+        }
+      );
     }
   } catch (error) {
     console.error('Error handling contact:', error);
-    handleError(bot, chatId, userState.language.code);
   }
 };
-
-async function handleExistingPatient(bot: any, chatId: number, patient: any, language: string) {
-  try {
-    const { error: updateError } = await supabase
-      .from('patients')
-      .update({
-        telegram_chat_id: chatId.toString(),
-        telegram_registered: true
-      })
-      .eq('id', patient.id);
-
-    if (updateError) throw updateError;
-
-    // Send confirmation message
-    const confirmationMessage = language === 'uz'
-      ? `✅ Rahmat! Siz muvaffaqiyatli ro'yxatdan o'tdingiz!\n\nIsm: ${patient.full_name}`
-      : `✅ Спасибо! Вы успешно зарегистрировались!\n\nИмя: ${patient.full_name}`;
-
-    bot.sendMessage(chatId, confirmationMessage, {
-      reply_markup: { remove_keyboard: true }
-    });
-  } catch (error) {
-    console.error('Error updating existing patient:', error);
-    throw error;
-  }
-}
-
-async function handleNewPatient(bot: any, chatId: number, contact: any, userState: any) {
-  // Start registration process
-  stateManager.update(chatId, {
-    step: 'BIRTHDATE_REQUEST',
-    registrationData: {
-      full_name: contact.first_name + (contact.last_name ? ' ' + contact.last_name : ''),
-      phone: contact.phone_number
-    }
-  });
-
-  // Request birthdate
-  bot.sendMessage(chatId, birthdateRequestMessage[userState.language.code], {
-    reply_markup: { remove_keyboard: true }
-  });
-}
-
-function handleError(bot: any, chatId: number, language: string) {
-  const errorMessage = language === 'uz'
-    ? 'Xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko\'ring.'
-    : 'Произошла ошибка. Пожалуйста, попробуйте позже.';
-
-  bot.sendMessage(chatId, errorMessage, {
-    reply_markup: { remove_keyboard: true }
-  });
-}

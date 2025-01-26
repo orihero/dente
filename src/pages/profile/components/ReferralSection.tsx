@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Copy, Share2 } from 'lucide-react';
+import { ChevronDown, Copy, Share2, Users } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { supabase } from '../../../lib/supabase';
@@ -46,7 +46,7 @@ export const ReferralSection: React.FC<ReferralSectionProps> = ({
 
   const handleCopyLink = async () => {
     try {
-      const referralLink = `https://dente.uz/refer/${dentistId}`;
+      const referralLink = `${window.location.origin}/refer/${dentistId}`;
       await navigator.clipboard.writeText(referralLink);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -56,7 +56,7 @@ export const ReferralSection: React.FC<ReferralSectionProps> = ({
   };
 
   const handleShare = async () => {
-    const referralLink = `https://dente.uz/refer/${dentistId}`;
+    const referralLink = `${window.location.origin}/refer/${dentistId}`;
     const shareData = {
       title: language === 'uz' ? 'Dente.uz tavsiyasi' : 'Рекомендация Dente.uz',
       text: language === 'uz' 
@@ -86,9 +86,12 @@ export const ReferralSection: React.FC<ReferralSectionProps> = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            {language === 'uz' ? 'Yo\'llash dasturi' : 'Реферальная программа'}
-          </h3>
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-lg font-medium text-gray-900">
+              {language === 'uz' ? 'Yo\'llash dasturi' : 'Реферальная программа'}
+            </h3>
+          </div>
           <ChevronDown 
             className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${
               isExpanded ? 'transform rotate-180' : ''
@@ -108,7 +111,7 @@ export const ReferralSection: React.FC<ReferralSectionProps> = ({
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={`https://dente.uz/refer/${dentistId}`}
+                  value={`${window.location.origin}/refer/${dentistId}`}
                   readOnly
                   className="flex-1 px-3 py-2 border rounded-md bg-white"
                 />
@@ -135,7 +138,7 @@ export const ReferralSection: React.FC<ReferralSectionProps> = ({
             {/* Leads List */}
             <div>
               <h4 className="font-medium text-gray-900 mb-4">
-                {language === 'uz' ? 'Yo\'llangan shifokorlar' : 'Направленные врачи'}
+                {language === 'uz' ? 'Yo\'llangan bemorlar' : 'Направленные пациенты'}
               </h4>
               {loading ? (
                 <div className="text-center py-4">

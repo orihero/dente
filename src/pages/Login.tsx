@@ -1,47 +1,27 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { Lock, Mail, AlertCircle, Languages, ArrowLeft } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useLanguageStore } from '../store/languageStore';
-
-interface LoginForm {
-  emailPhone: string;
-  password: string;
-}
+import { translations } from '../i18n/translations';
+import { useAuthStore } from '../store/authStore';
+import { LoginForm } from './login/components/LoginForm';
+import { LanguageToggle } from './login/components/LanguageToggle';
+import { BackButton } from './login/components/BackButton';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { language, setLanguage } = useLanguageStore();
+  const location = useLocation();
+  const { language } = useLanguageStore();
+  const { checkUser, isAdmin } = useAuthStore();
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
+  const t = translations[language].login;
 
-  // Define translations directly in the component for now
-  const translations = {
-    uz: {
-      title: "Tizimga kirish",
-      emailPhone: "Email yoki telefon",
-      password: "Parol",
-      loginButton: "Kirish",
-      forgotPassword: "Parolni unutdingizmi?",
-      invalidCredentials: "Email yoki parol noto'g'ri",
-      back: "Orqaga"
-    },
-    ru: {
-      title: "Вход в систему",
-      emailPhone: "Email или телефон",
-      password: "Пароль",
-      loginButton: "Войти",
-      forgotPassword: "Забыли пароль?",
-      invalidCredentials: "Неверный email или пароль",
-      back: "Назад"
-    }
-  };
-
-  const t = translations[language];
-
-  const onSubmit = async (data: LoginForm) => {
+  const handleSubmit = async (data: { emailPhone: string; password: string }) => {
+    setLoading(true);
+    setError('');
+    
     try {
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: data.emailPhone,
@@ -50,32 +30,28 @@ export const Login: React.FC = () => {
 
       if (signInError) throw signInError;
 
-      navigate('/profile');
+      // Update auth state - this will also check admin status
+      await checkUser();
+
+      // Get return URL from location state or use default based on isAdmin
+      const returnUrl = location.state?.from?.pathname || (isAdmin ? '/admin' : '/dashboard');
+      navigate(returnUrl, { replace: true });
     } catch (err) {
+      console.error('Login error:', err);
       setError(t.invalidCredentials);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="absolute top-4 left-4">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/50 text-gray-700"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>{t.back}</span>
-        </button>
+        <BackButton />
       </div>
 
       <div className="absolute top-4 right-4">
-        <button
-          onClick={() => setLanguage(language === 'uz' ? 'ru' : 'uz')}
-          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-white/50"
-        >
-          <Languages className="w-5 h-5" />
-          <span className="uppercase">{language}</span>
-        </button>
+        <LanguageToggle />
       </div>
       
       <div className="container mx-auto px-4 h-screen flex items-center justify-center">
@@ -84,59 +60,11 @@ export const Login: React.FC = () => {
             {t.title}
           </h1>
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  {...register('emailPhone', { required: true })}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder={t.emailPhone}
-                />
-              </div>
-              {errors.emailPhone && (
-                <span className="text-sm text-red-500 mt-1">This field is required</span>
-              )}
-            </div>
-
-            <div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  {...register('password', { required: true })}
-                  type="password"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder={t.password}
-                />
-              </div>
-              {errors.password && (
-                <span className="text-sm text-red-500 mt-1">This field is required</span>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                className="text-sm text-indigo-600 hover:text-indigo-500"
-              >
-                {t.forgotPassword}
-              </button>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            >
-              {t.loginButton}
-            </button>
-          </form>
+          <LoginForm
+            onSubmit={handleSubmit}
+            loading={loading}
+            error={error}
+          />
         </div>
       </div>
     </div>

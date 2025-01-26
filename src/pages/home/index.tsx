@@ -17,6 +17,8 @@ interface Patient {
   full_name: string;
   phone: string;
   birthdate: string;
+  telegram_registered?: boolean;
+  telegram_chat_id?: string;
 }
 
 interface Appointment {
@@ -27,7 +29,7 @@ interface Appointment {
   patient: Patient;
 }
 
-const Home: React.FC = () => {
+export const Home: React.FC = () => {
   const navigate = useNavigate();
   const { language } = useLanguageStore();
   const t = translations[language].home;
@@ -119,14 +121,95 @@ const Home: React.FC = () => {
 
       const appointmentTime = new Date(appointmentData.appointment_date + 'T' + appointmentData.appointment_time);
 
-      const { error } = await supabase.from('appointments').insert({
+      const { data: appointment, error } = await supabase.from('appointments').insert({
         dentist_id: user.id,
         patient_id: patientId,
         appointment_time: appointmentTime.toISOString(),
         notes: appointmentData.notes
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // Get dentist profile for notification
+      const { data: dentist, error: dentistError } = await supabase
+        .from('dentists')
+        .select('*, message_templates')
+        .eq('id', user.id)
+        .single();
+
+      if (dentistError) throw dentistError;
+
+      // Get patient for notification
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', patientId)
+        .single();
+
+      if (patientError) throw patientError;
+
+      // Prepare template variables
+      const variables = {
+        patient_name: patient.full_name,
+        dentist_name: dentist.full_name,
+        date: appointmentTime.toLocaleDateString(language === 'uz' ? 'uz-UZ' : 'ru-RU'),
+        time: appointmentTime.toLocaleTimeString(language === 'uz' ? 'uz-UZ' : 'ru-RU', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        })
+      };
+
+      // Create notification based on patient's preferred method
+      if (patient.telegram_registered && patient.telegram_chat_id) {
+        // Create Telegram notification
+        const template = dentist.message_templates?.appointment?.telegram?.[language];
+        if (template) {
+          const { error: notificationError } = await supabase
+            .from('notifications')
+            .insert({
+              type: 'telegram',
+              status: 'pending',
+              recipient: patient.telegram_chat_id,
+              message: template
+                .replace('{{patient_name}}', variables.patient_name)
+                .replace('{{dentist_name}}', variables.dentist_name)
+                .replace('{{date}}', variables.date)
+                .replace('{{time}}', variables.time)
+            });
+
+          if (notificationError) throw notificationError;
+        }
+      } else {
+        // Generate registration token for Telegram bot
+        const { data: token, error: tokenError } = await supabase
+          .rpc('generate_telegram_registration_token', {
+            patient_id: patientId
+          });
+
+        if (tokenError) throw tokenError;
+
+        // Create SMS notification
+        const template = dentist.message_templates?.appointment?.sms?.[language];
+        if (template) {
+          const { error: notificationError } = await supabase
+            .from('notifications')
+            .insert({
+              type: 'sms',
+              status: 'pending',
+              recipient: patient.phone,
+              message: template
+                .replace('{{patient_name}}', variables.patient_name)
+                .replace('{{dentist_name}}', variables.dentist_name)
+                .replace('{{date}}', variables.date)
+                .replace('{{time}}', variables.time)
+                .replace('{{bot_link}}', `https://t.me/denteuzbot?start=${token}`)
+            });
+
+          if (notificationError) throw notificationError;
+        }
+      }
+
       await fetchAppointments();
       setShowAppointmentModal(false);
       setAppointmentData({

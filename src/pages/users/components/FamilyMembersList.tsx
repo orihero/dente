@@ -40,6 +40,18 @@ export const FamilyMembersList: React.FC<FamilyMembersListProps> = ({ members })
     return relationships[relationship] || relationship;
   };
 
+  const formatPhoneNumber = (phone: string) => {
+    // Format as +998 XX XXX XX XX for display
+    const digits = phone.replace(/\D/g, '');
+    let formatted = '';
+    if (digits.length > 0) formatted += '+' + digits.substring(0, 3); // +998
+    if (digits.length > 3) formatted += ' ' + digits.substring(3, 5);
+    if (digits.length > 5) formatted += ' ' + digits.substring(5, 8);
+    if (digits.length > 8) formatted += ' ' + digits.substring(8, 10);
+    if (digits.length > 10) formatted += ' ' + digits.substring(10, 12);
+    return formatted;
+  };
+
   return (
     <div className="divide-y divide-gray-200">
       {members.map((member) => (
@@ -56,7 +68,7 @@ export const FamilyMembersList: React.FC<FamilyMembersListProps> = ({ members })
             <div className="space-y-1">
               <div className="flex items-center text-gray-600">
                 <Phone className="w-4 h-4 mr-2" />
-                <span className="text-sm">{member.phone}</span>
+                <span className="text-sm">{formatPhoneNumber(member.phone)}</span>
               </div>
               <div className="flex items-center text-gray-600">
                 <Calendar className="w-4 h-4 mr-2" />

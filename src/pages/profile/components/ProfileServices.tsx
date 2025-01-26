@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, ChevronDown } from 'lucide-react';
+import { Settings, ChevronDown, Stethoscope } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { ServicesList } from './ServicesList';
@@ -24,9 +24,12 @@ export const ProfileServices: React.FC<ProfileServicesProps> = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            {t.services}
-          </h3>
+          <div className="flex items-center gap-2">
+            <Stethoscope className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-lg font-medium text-gray-900">
+              {t.services}
+            </h3>
+          </div>
           <ChevronDown 
             className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${
               isExpanded ? 'transform rotate-180' : ''

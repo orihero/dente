@@ -2,7 +2,11 @@ import React from 'react';
 import { Check } from 'lucide-react';
 import { useLanguageStore } from '../../store/languageStore';
 
-export const PricingFeature = () => {
+interface PricingFeatureProps {
+  onDemoClick: () => void;
+}
+
+export const PricingFeature: React.FC<PricingFeatureProps> = ({ onDemoClick }) => {
   const { language } = useLanguageStore();
 
   const translations = {
@@ -151,6 +155,7 @@ export const PricingFeature = () => {
                   ))}
                 </ul>
                 <button
+                  onClick={onDemoClick}
                   className="w-full py-3 px-6 rounded-lg font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700"
                 >
                   {plan.price ? t.getStarted : t.contactUs}

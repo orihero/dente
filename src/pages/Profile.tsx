@@ -1,82 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../components/AuthProvider';
+import { useProfileStore } from '../store/profileStore';
 import { useLanguageStore } from '../store/languageStore';
 import { translations } from '../i18n/translations';
-import { ServiceConfigModal } from './profile/components/ServiceConfigModal';
-import { ServicesList } from './profile/components/ServicesList';
-import { ProfileEditModal } from './profile/components/ProfileEditModal';
-import { CertificatesSection } from './profile/components/CertificatesSection';
-import { CertificateUploadModal } from './profile/components/CertificateUploadModal';
-import { TelegramBotSettings } from './profile/components/TelegramBotSettings';
-import { LoyaltyProgramsSection } from './profile/components/LoyaltyProgramsSection';
-import { ReferralSection } from './profile/components/ReferralSection';
 import { BottomNavigation } from '../components/BottomNavigation';
-import { ProfileSkeleton } from './profile/components/ProfileSkeleton';
-import { ProfileHeader } from './profile/components/ProfileHeader';
+import { Header } from '../components/Header';
 import { ProfileInfo } from './profile/components/ProfileInfo';
+import { CertificatesSection } from './profile/components/CertificatesSection';
+import { ReferralSection } from './profile/components/ReferralSection';
 import { ProfileServices } from './profile/components/ProfileServices';
-
-interface Profile {
-  id: string;
-  full_name: string;
-  phone: string;
-  experience: number;
-  birthdate: string | null;
-  photo_url: string | null;
-  social_media: {
-    platforms: Array<{
-      platform: string;
-      url: string;
-    }>;
-  };
-}
+import { ProfileEditModal } from './profile/components/ProfileEditModal';
+import { ServiceConfigModal } from './profile/components/ServiceConfigModal';
+import { CertificateUploadModal } from './profile/components/CertificateUploadModal';
+import { NewProfileForm } from './profile/components/NewProfileForm';
+import { SettingsSection } from './profile/components/SettingsSection';
+import { supabase } from '../lib/supabase';
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { language } = useLanguageStore();
+  const { profile, loading, error, fetchProfile, updateProfile } = useProfileStore();
   const t = translations[language].profile;
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [services, setServices] = useState([]);
-  const [certificates, setCertificates] = useState([]);
+  
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [certificates, setCertificates] = useState([]);
+  const [services, setServices] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
-    fetchProfile();
-    fetchServices();
-    fetchCertificates();
+    if (!profile) {
+      fetchProfile();
+    }
   }, []);
 
-  const fetchProfile = async () => {
-    try {
-      if (!user) return;
+  useEffect(() => {
+    if (profile) {
+      fetchCertificates();
+      fetchServices();
+    }
+  }, [profile]);
 
+  const fetchCertificates = async () => {
+    try {
       const { data, error } = await supabase
-        .from('dentists')
+        .from('dentist_certificates')
         .select('*')
-        .eq('id', user.id)
-        .single();
+        .eq('dentist_id', profile.id)
+        .order('created_at');
 
       if (error) throw error;
-      setProfile(data);
+      setCertificates(data || []);
     } catch (error) {
-      console.error('Error loading profile:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Error fetching certificates:', error);
     }
   };
 
   const fetchServices = async () => {
     try {
-      if (!user) return;
-
       const { data, error } = await supabase
         .from('dentist_services')
         .select(`
@@ -88,67 +71,22 @@ export const Profile: React.FC = () => {
             category:service_categories(
               id,
               name_uz,
-              name_ru
+              name_ru,
+              color
             )
           )
         `)
-        .eq('dentist_id', user.id)
+        .eq('dentist_id', profile.id)
         .order('created_at');
 
       if (error) throw error;
       setServices(data || []);
     } catch (error) {
-      console.error('Error loading services:', error);
-    }
-  };
-
-  const fetchCertificates = async () => {
-    try {
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('dentist_certificates')
-        .select('*')
-        .eq('dentist_id', user.id)
-        .order('created_at');
-
-      if (error) throw error;
-      setCertificates(data || []);
-    } catch (error) {
-      console.error('Error loading certificates:', error);
-    }
-  };
-
-  const handleUpdateProfile = async () => {
-    setLoading(true);
-    try {
-      await fetchProfile();
-      await fetchServices();
-      await fetchCertificates();
-      setShowEditModal(false);
-      setShowServiceModal(false);
-      setShowCertificateModal(false);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    if (!window.confirm(t.confirmLogout)) return;
-
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      navigate('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Error fetching services:', error);
     }
   };
 
   const handleDeleteCertificate = async (id: string) => {
-    setLoading(true);
     try {
       const { error } = await supabase
         .from('dentist_certificates')
@@ -159,36 +97,37 @@ export const Profile: React.FC = () => {
       await fetchCertificates();
     } catch (error) {
       console.error('Error deleting certificate:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  if (isLoading) {
-    return <ProfileSkeleton />;
-  }
+  const isNewProfile = profile && (!profile.full_name || !profile.phone);
 
-  if (!profile) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-medium text-gray-900 mb-2">
-            {language === 'uz' ? 'Profil topilmadi' : 'Профиль не найден'}
-          </h2>
-          <button
-            onClick={handleSignOut}
-            className="text-indigo-600 hover:text-indigo-500"
-          >
-            {t.logout}
-          </button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-600">{error}</div>
+      </div>
+    );
+  }
+
+  if (isNewProfile) {
+    return <NewProfileForm updateProfile={updateProfile} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <ProfileHeader onSignOut={handleSignOut} />
+      <Header
+        showNotifications={showNotifications}
+        setShowNotifications={setShowNotifications}
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
         <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -201,27 +140,22 @@ export const Profile: React.FC = () => {
             certificates={certificates}
             onUpload={() => setShowCertificateModal(true)}
             onDelete={handleDeleteCertificate}
-            loading={loading}
-          />
-
-          <LoyaltyProgramsSection
-            dentistId={profile.id}
-            onRefresh={handleUpdateProfile}
+            loading={modalLoading}
           />
 
           <ReferralSection
             dentistId={profile.id}
-            onRefresh={handleUpdateProfile}
-          />
-
-          <TelegramBotSettings
-            dentistId={profile.id}
-            onRefresh={handleUpdateProfile}
+            onRefresh={fetchProfile}
           />
 
           <ProfileServices
             services={services}
             onAddService={() => setShowServiceModal(true)}
+          />
+
+          <SettingsSection
+            dentistId={profile.id}
+            onRefresh={fetchProfile}
           />
         </div>
       </div>
@@ -231,23 +165,34 @@ export const Profile: React.FC = () => {
       <ProfileEditModal
         showModal={showEditModal}
         onClose={() => setShowEditModal(false)}
-        onSubmit={handleUpdateProfile}
-        loading={loading}
+        onSubmit={async (data) => {
+          setModalLoading(true);
+          await updateProfile(data);
+          setShowEditModal(false);
+          setModalLoading(false);
+        }}
+        loading={modalLoading}
         profile={profile}
       />
 
       <ServiceConfigModal
         showModal={showServiceModal}
         onClose={() => setShowServiceModal(false)}
-        onSubmit={handleUpdateProfile}
-        loading={loading}
+        onSubmit={async () => {
+          await fetchServices();
+          setShowServiceModal(false);
+        }}
+        loading={modalLoading}
       />
 
       <CertificateUploadModal
         showModal={showCertificateModal}
         onClose={() => setShowCertificateModal(false)}
-        onUpload={handleUpdateProfile}
-        loading={loading}
+        onUpload={async () => {
+          await fetchCertificates();
+          setShowCertificateModal(false);
+        }}
+        loading={modalLoading}
       />
     </div>
   );

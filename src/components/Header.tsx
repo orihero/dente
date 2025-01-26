@@ -1,7 +1,9 @@
 import React from 'react';
-import { Bell, Languages } from 'lucide-react';
+import { Bell, Languages, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguageStore } from '../store/languageStore';
 import { translations } from '../i18n/translations';
+import { supabase } from '../lib/supabase';
 
 interface HeaderProps {
   showNotifications: boolean;
@@ -9,8 +11,19 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ showNotifications, setShowNotifications }) => {
+  const navigate = useNavigate();
   const { language, setLanguage } = useLanguageStore();
   const t = translations[language].home;
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <header className="bg-white shadow-sm">
@@ -38,6 +51,12 @@ export const Header: React.FC<HeaderProps> = ({ showNotifications, setShowNotifi
           >
             <Languages className="w-5 h-5" />
             <span className="uppercase">{language}</span>
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <LogOut className="w-6 h-6" />
           </button>
         </div>
       </div>

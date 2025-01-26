@@ -44,7 +44,25 @@ export const Landing: React.FC = () => {
         state: { referredBy: dentistId }
       });
     }
-  }, [dentistId, location.pathname]);
+  }, [dentistId, location.pathname, navigate]);
+
+  // Separate useEffect for scroll handling
+  useEffect(() => {
+    const hasShownModal = sessionStorage.getItem('hasShownDemoModal') === 'true';
+    
+    const handleScroll = () => {
+      if (!hasShownModal && !showDemoModal) {
+        const scrollPercentage = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+        if (scrollPercentage > 50) {
+          setShowDemoModal(true);
+          sessionStorage.setItem('hasShownDemoModal', 'true');
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [showDemoModal]);
 
   const checkUser = async () => {
     try {
@@ -55,6 +73,10 @@ export const Landing: React.FC = () => {
     } catch (error) {
       console.error('Error checking auth status:', error);
     }
+  };
+
+  const handleCloseModal = () => {
+    setShowDemoModal(false);
   };
 
   return (
@@ -68,13 +90,13 @@ export const Landing: React.FC = () => {
       <LoyaltyFeature />
       <SmilePreviewFeature />
       <ProcessFeature />
-      <PricingFeature />
+      <PricingFeature onDemoClick={() => setShowDemoModal(true)} />
       <FAQFeature />
       <FooterFeature />
       
       <DemoBookingModal
         showModal={showDemoModal}
-        onClose={() => setShowDemoModal(false)}
+        onClose={handleCloseModal}
         referredBy={referredBy}
       />
     </div>

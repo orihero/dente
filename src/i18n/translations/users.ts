@@ -52,7 +52,18 @@ export const usersTranslations = {
     totalAmount: "Jami summa",
     balance: "Balans",
     debt: "Qarz",
-    paid: "To'langan"
+    paid: "To'langan",
+    // Recipe/advice related translations
+    recipe: "Dori-darmonlar",
+    suggestions: "Tavsiyalar",
+    recipePlaceholder: "Dori-darmonlar va qo'llash bo'yicha ko'rsatmalar",
+    suggestionsPlaceholder: "Bemorga tavsiyalar",
+    sendRecipe: "Retsept va tavsiyalarni yuborish",
+    sending: "Yuborilmoqda...",
+    sent: "Yuborilgan",
+    noRecipeOrSuggestions: "Retsept yoki tavsiyalar mavjud emas",
+    sendError: "Xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko'ring.",
+    sendSuccess: "Retsept muvaffaqiyatli yuborildi"
   },
   ru: {
     title: "Пациенты",
@@ -107,6 +118,17 @@ export const usersTranslations = {
     totalAmount: "Общая сумма",
     balance: "Баланс",
     debt: "Долг",
-    paid: "Оплачено"
+    paid: "Оплачено",
+    // Recipe/advice related translations
+    recipe: "Лекарства",
+    suggestions: "Рекомендации",
+    recipePlaceholder: "Лекарства и инструкции по применению",
+    suggestionsPlaceholder: "Рекомендации пациенту",
+    sendRecipe: "Отправить рецепт и рекомендации",
+    sending: "Отправка...",
+    sent: "Отправлено",
+    noRecipeOrSuggestions: "Нет рецепта или рекомендаций",
+    sendError: "Произошла ошибка. Пожалуйста, попробуйте позже.",
+    sendSuccess: "Рецепт успешно отправлен"
   }
 };

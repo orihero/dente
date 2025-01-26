@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { PhoneInput } from '../../../components/PhoneInput';
+import { DatePicker } from '../../../components/DatePicker';
 import { supabase } from '../../../lib/supabase';
 
 interface AppointmentFormProps {
@@ -38,25 +39,25 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
       setIsExistingPatient(false);
     }
     
-    // Only check for existing patient if phone number is complete
-    if (value.replace(/\D/g, '').length === 12) { // +998 XX XXX XX XX
+    // Only check for existing patient if phone number is complete (12 digits)
+    if (value.length === 12) {
       try {
         const { data: patients, error } = await supabase
           .from('patients')
           .select('*')
-          .eq('phone', value);
+          .eq('phone', value)
+          .maybeSingle();
 
         if (error) throw error;
 
-        if (patients && patients.length > 0) {
-          const patient = patients[0];
+        if (patients) {
           setIsExistingPatient(true);
           setData(prev => ({
             ...prev,
-            patient_id: patient.id,
-            full_name: patient.full_name,
-            birthdate: patient.birthdate,
-            address: patient.address || ''
+            patient_id: patients.id,
+            full_name: patients.full_name,
+            birthdate: patients.birthdate,
+            address: patients.address || ''
           }));
         } else {
           // Clear patient data if no match found
@@ -74,8 +75,17 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   };
 
+  // Generate time slots from 9:00 to 21:00
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 9; hour <= 21; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    return slots;
+  };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-6">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t.phone}
@@ -117,13 +127,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t.birthdate}
         </label>
-        <input
-          type="date"
-          required
+        <DatePicker
           value={data.birthdate}
-          onChange={(e) => setData({ ...data, birthdate: e.target.value })}
-          className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-          readOnly={isExistingPatient}
+          onChange={(value) => setData({ ...data, birthdate: value })}
+          className={isExistingPatient ? 'opacity-50 cursor-not-allowed' : ''}
         />
       </div>
 
@@ -177,17 +184,29 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             })}
           </select>
         </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {t.time}
-          </label>
-          <input
-            type="time"
-            required
-            value={data.appointment_time}
-            onChange={(e) => setData({ ...data, appointment_time: e.target.value })}
-            className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-          />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {t.time}
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          {generateTimeSlots().map((time) => (
+            <button
+              key={time}
+              type="button"
+              onClick={() => setData({ ...data, appointment_time: time })}
+              className={`
+                p-2 text-sm rounded-md transition-colors duration-200
+                ${data.appointment_time === time
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-indigo-50 hover:bg-indigo-100 text-gray-900'
+                }
+              `}
+            >
+              {time}
+            </button>
+          ))}
         </div>
       </div>
 
