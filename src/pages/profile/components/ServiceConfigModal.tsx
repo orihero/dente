@@ -25,6 +25,8 @@ interface ServiceData {
   category_name_ru: string;
 }
 
+const SERVICES_STORAGE_KEY = 'dentist_services';
+
 export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
   showModal,
   onClose,
@@ -37,6 +39,7 @@ export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
   const [services, setServices] = useState<any[]>([]);
   const [selectedServices, setSelectedServices] = useState<Record<string, ServiceData>>({});
   const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (showModal) {
@@ -44,6 +47,12 @@ export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
       loadExistingServices();
     }
   }, [showModal]);
+
+  useEffect(() => {
+    if (activeCategory) {
+      loadServices(activeCategory);
+    }
+  }, [activeCategory]);
 
   const loadCategories = async () => {
     try {
@@ -54,6 +63,11 @@ export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
 
       if (error) throw error;
       setCategories(data || []);
+      
+      // Set first category as active by default
+      if (data && data.length > 0 && !activeCategory) {
+        setActiveCategory(data[0].id);
+      }
     } catch (error) {
       console.error('Error loading categories:', error);
     }
@@ -64,6 +78,29 @@ export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // First try to load from local storage
+      const storedServices = localStorage.getItem(SERVICES_STORAGE_KEY);
+      if (storedServices) {
+        const parsedServices = JSON.parse(storedServices);
+        const servicesMap: Record<string, ServiceData> = {};
+        parsedServices.forEach((service: any) => {
+          servicesMap[service.base_service.id] = {
+            id: service.id,
+            base_service_id: service.base_service.id,
+            price: service.price ? `${service.price.toLocaleString()} UZS` : '',
+            duration: service.duration,
+            warranty: service.warranty || '',
+            name_uz: service.base_service.name_uz,
+            name_ru: service.base_service.name_ru,
+            category_name_uz: service.base_service.category.name_uz,
+            category_name_ru: service.base_service.category.name_ru
+          };
+        });
+        setSelectedServices(servicesMap);
+        return;
+      }
+
+      // If not in local storage, fetch from API
       const { data, error } = await supabase
         .from('dentist_services')
         .select(`
@@ -82,6 +119,9 @@ export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
         .eq('dentist_id', user.id);
 
       if (error) throw error;
+
+      // Store in local storage
+      localStorage.setItem(SERVICES_STORAGE_KEY, JSON.stringify(data));
 
       const servicesMap: Record<string, ServiceData> = {};
       data?.forEach(service => {
@@ -195,11 +235,28 @@ export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
         warranty: service.warranty || ''
       }));
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('dentist_services')
-        .insert(services);
+        .insert(services)
+        .select(`
+          *,
+          base_service:base_services(
+            id,
+            name_uz,
+            name_ru,
+            category:service_categories(
+              id,
+              name_uz,
+              name_ru
+            )
+          )
+        `);
 
       if (error) throw error;
+
+      // Update local storage with new data
+      localStorage.setItem(SERVICES_STORAGE_KEY, JSON.stringify(data));
+
       await onSubmit();
       onClose();
     } catch (error: any) {
@@ -232,99 +289,98 @@ export const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="p-4">
-          <div className="grid grid-cols-4 gap-4">
-            {/* Categories list */}
-            <div className="col-span-1 border-r pr-4">
-              <h3 className="font-medium text-gray-900 mb-2">
-                {language === 'uz' ? 'Kategoriyalar' : 'Категории'}
-              </h3>
-              <div className="space-y-1">
-                {categories.map((category) => (
-                  <button
-                    key={category.id}
-                    type="button"
-                    onClick={() => loadServices(category.id)}
-                    className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 text-sm"
-                  >
-                    {language === 'uz' ? category.name_uz : category.name_ru}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Categories Tabs */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8 overflow-x-auto">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => setActiveCategory(category.id)}
+                  className={`
+                    whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm
+                    ${activeCategory === category.id
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }
+                  `}
+                >
+                  {language === 'uz' ? category.name_uz : category.name_ru}
+                </button>
+              ))}
+            </nav>
+          </div>
 
-            {/* Services list */}
-            <div className="col-span-3">
-              <div className="space-y-4">
-                {services.map((service) => {
-                  const isSelected = !!selectedServices[service.id];
-                  return (
-                    <div key={service.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-medium text-gray-900">
-                            {language === 'uz' ? service.name_uz : service.name_ru}
-                          </h4>
-                        </div>
-                        <Switch
-                          checked={isSelected}
-                          onChange={() => handleServiceToggle(service)}
+          {/* Services List */}
+          <div className="mt-4 space-y-4">
+            {services.map((service) => {
+              const isSelected = !!selectedServices[service.id];
+              return (
+                <div key={service.id} className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-medium text-gray-900">
+                        {language === 'uz' ? service.name_uz : service.name_ru}
+                      </h4>
+                    </div>
+                    <Switch
+                      checked={isSelected}
+                      onChange={() => handleServiceToggle(service)}
+                    />
+                  </div>
+
+                  {isSelected && (
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {language === 'uz' ? 'Narx' : 'Цена'}
+                        </label>
+                        <CurrencyInput
+                          value={selectedServices[service.id].price}
+                          onChange={(value) => setSelectedServices(prev => ({
+                            ...prev,
+                            [service.id]: { ...prev[service.id], price: value }
+                          }))}
+                          placeholder={language === 'uz' ? 'Narxni kiriting' : 'Введите цену'}
                         />
                       </div>
 
-                      {isSelected && (
-                        <div className="mt-4 space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              {language === 'uz' ? 'Narx' : 'Цена'}
-                            </label>
-                            <CurrencyInput
-                              value={selectedServices[service.id].price}
-                              onChange={(value) => setSelectedServices(prev => ({
-                                ...prev,
-                                [service.id]: { ...prev[service.id], price: value }
-                              }))}
-                              placeholder={language === 'uz' ? 'Narxni kiriting' : 'Введите цену'}
-                            />
-                          </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {language === 'uz' ? 'Davomiyligi' : 'Длительность'}
+                        </label>
+                        <input
+                          type="text"
+                          value={selectedServices[service.id].duration}
+                          onChange={(e) => setSelectedServices(prev => ({
+                            ...prev,
+                            [service.id]: { ...prev[service.id], duration: e.target.value }
+                          }))}
+                          placeholder={language === 'uz' ? '30 min' : '30 мин'}
+                          className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                      </div>
 
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              {language === 'uz' ? 'Davomiyligi' : 'Длительность'}
-                            </label>
-                            <input
-                              type="text"
-                              value={selectedServices[service.id].duration}
-                              onChange={(e) => setSelectedServices(prev => ({
-                                ...prev,
-                                [service.id]: { ...prev[service.id], duration: e.target.value }
-                              }))}
-                              placeholder={language === 'uz' ? '30 min' : '30 мин'}
-                              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              {language === 'uz' ? 'Kafolat' : 'Гарантия'}
-                            </label>
-                            <input
-                              type="text"
-                              value={selectedServices[service.id].warranty}
-                              onChange={(e) => setSelectedServices(prev => ({
-                                ...prev,
-                                [service.id]: { ...prev[service.id], warranty: e.target.value }
-                              }))}
-                              placeholder={language === 'uz' ? '6 oy' : '6 месяцев'}
-                              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                          </div>
-                        </div>
-                      )}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {language === 'uz' ? 'Kafolat' : 'Гарантия'}
+                        </label>
+                        <input
+                          type="text"
+                          value={selectedServices[service.id].warranty}
+                          onChange={(e) => setSelectedServices(prev => ({
+                            ...prev,
+                            [service.id]: { ...prev[service.id], warranty: e.target.value }
+                          }))}
+                          placeholder={language === 'uz' ? '6 oy' : '6 месяцев'}
+                          className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="flex gap-4 mt-6">

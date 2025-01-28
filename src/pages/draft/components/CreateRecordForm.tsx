@@ -59,8 +59,8 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
       // Only proceed if we have a complete phone number
       if (data.phone.replace(/\D/g, '').length === 12) {
         try {
-          // Normalize phone number by removing all non-digit characters
-          const normalizedPhone = "+" + data.phone.replace(/\D/g, '');
+          // Remove all non-digit characters and don't add + prefix
+          const normalizedPhone = data.phone.replace(/\D/g, '');
           
           const { data: patients, error } = await supabase
             .from('patients')
@@ -78,6 +78,14 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
               full_name: patients.full_name,
               birthdate: patients.birthdate,
               address: patients.address || ''
+            }));
+          } else {
+            // Clear patient data if no match found
+            setData(prev => ({
+              ...prev,
+              full_name: '',
+              birthdate: '',
+              address: ''
             }));
           }
         } catch (error) {
@@ -98,7 +106,7 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      // Normalize phone number by removing all non-digit characters
+      // Remove all non-digit characters from phone number
       const normalizedPhone = data.phone.replace(/\D/g, '');
 
       // First create or get patient

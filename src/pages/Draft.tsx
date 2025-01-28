@@ -55,75 +55,92 @@ const Draft: React.FC = () => {
     // First reset all teeth colors
     const allTeethIds = Array.from({ length: 32 }, (_, i) => String(i + 1).padStart(2, '0'));
     allTeethIds.forEach(id => {
-      const element = document.getElementById(`click${id}`);
-      if (element) {
-        const paths = Array.from(element.children).filter(child => 
-          child.tagName.toLowerCase() === 'path'
-        ) as SVGPathElement[];
-        
-        const lastTwo = paths.slice(-2);
-        lastTwo.forEach(path => {
-          path.style.fill = '#FAFAFA';
-        });
-      }
+      resetToothColor(id);
     });
 
     // Then apply colors for teeth with services
     services.forEach(item => {
       const element = document.getElementById(`click${item.toothId}`);
       if (element && item.services.length > 0) {
-        const paths = Array.from(element.children).filter(child => 
-          child.tagName.toLowerCase() === 'path'
-        ) as SVGPathElement[];
-        
-        const lastTwo = paths.slice(-2);
-        const color = item.services[0].categoryColor;
-        lastTwo.forEach(path => {
-          path.style.fill = color;
+        Array.from(element.children).forEach(child => {
+          if (child.tagName.toLowerCase() === 'path') {
+            const path = child as SVGPathElement;
+            // Skip paths that match the exclusion criteria (fill="black" and fill-opacity="0.71")
+            const fill = path.getAttribute('fill');
+            const fillOpacity = path.getAttribute('fill-opacity');
+            if (!(fill === 'black' && fillOpacity === '0.71')) {
+              path.style.fill = item.services[0].categoryColor;
+            }
+          }
         });
       }
     });
   };
 
+  const resetToothColor = (toothId: string) => {
+    const element = document.getElementById(`click${toothId}`);
+    if (element) {
+      Array.from(element.children).forEach(child => {
+        if (child.tagName.toLowerCase() === 'path') {
+          const path = child as SVGPathElement;
+          // Skip paths that match the exclusion criteria (fill="black" and fill-opacity="0.71")
+          const fill = path.getAttribute('fill');
+          const fillOpacity = path.getAttribute('fill-opacity');
+          if (!(fill === 'black' && fillOpacity === '0.71')) {
+            path.style.fill = '#FAFAFA';
+          }
+        }
+      });
+    }
+  };
+
   const handleTeethClick = (event: React.MouseEvent<SVGElement>) => {
+    console.log("Teeth clicked")
     // Find the closest parent element with an ID starting with 'click'
     const clickableParent = (event.target as Element).closest('[id^="click"]');
-    
-    if (clickableParent?.id) {
-      const toothId = clickableParent.id.slice(-2); // Get last two characters
-      
-      // Check if tooth already has services applied
-      const hasServices = toothServices.some(item => item.toothId === toothId);
-      if (hasServices) {
-        return; // Don't allow selection if services are already applied
-      }
-      
-      // Check if tooth is already selected
-      if (selectedTeeth.some(tooth => tooth.id === toothId)) {
+    if (!clickableParent) return; // Exit if no valid parent is found
+
+    const toothId = clickableParent.id.slice(-2); // Extract last two characters of the ID
+
+    // Check if the tooth already has services applied
+    const hasServices = toothServices.some(item => item.toothId === toothId);
+    if (hasServices) return; // Prevent selection if services are applied
+
+    // Determine if the tooth is already selected
+    const isSelected = selectedTeeth.some(tooth => tooth.id === toothId);
+
+    if (isSelected) {
+        // Deselect the tooth
         setSelectedTeeth(prev => prev.filter(tooth => tooth.id !== toothId));
-        
-        // Reset tooth color
-        const paths = Array.from(clickableParent.children).filter(child => 
-          child.tagName.toLowerCase() === 'path'
-        ) as SVGPathElement[];
-        
-        const lastTwo = paths.slice(-2);
-        lastTwo.forEach(path => {
-          path.style.fill = '#FAFAFA';
+
+        // Reset the tooth color
+        Array.from(clickableParent.children).forEach(child => {
+            if (child.tagName.toLowerCase() === 'path') {
+                const path = child as SVGPathElement;
+                // Skip paths that match the exclusion criteria (fill="black" and fill-opacity="0.71")
+                const fill = path.getAttribute('fill');
+                const fillOpacity = path.getAttribute('fill-opacity');
+                if (!(fill === 'black' && fillOpacity === '0.71') && path.id !== toothId) {
+                    path.style.fill = '#FAFAFA'; // Reset to default color
+                }
+            }
         });
-      } else {
-        setSelectedTeeth(prev => [...prev, { id: toothId, name: `${t.tooth} ${toothId}` }]);
-        
-        // Highlight tooth
-        const paths = Array.from(clickableParent.children).filter(child => 
-          child.tagName.toLowerCase() === 'path'
-        ) as SVGPathElement[];
-        
-        const lastTwo = paths.slice(-2);
-        lastTwo.forEach(path => {
-          path.style.fill = '#FFB3B3';
+    } else {
+        // Select the tooth
+        setSelectedTeeth(prev => [...prev, { id: toothId, name: `Tooth ${toothId}` }]);
+
+        // Highlight the tooth
+        Array.from(clickableParent.children).forEach(child => {
+            if (child.tagName.toLowerCase() === 'path') {
+                const path = child as SVGPathElement;
+                // Skip paths that match the exclusion criteria (fill="black" and fill-opacity="0.71")
+                const fill = path.getAttribute('fill');
+                const fillOpacity = path.getAttribute('fill-opacity');
+                if (!(fill === 'black' && fillOpacity === '0.71') && path.id !== toothId) {
+                    path.style.fill = '#FFB3B3'; // Highlight color
+                }
+            }
         });
-      }
     }
   };
 
@@ -138,6 +155,7 @@ const Draft: React.FC = () => {
   };
 
   const handleServiceApply = () => {
+    console.log(selectedServices)
     if (selectedServices.length === 0) {
       setShowServiceModal(true);
       return;
@@ -156,20 +174,23 @@ const Draft: React.FC = () => {
     // Update local storage
     const updatedServices = [...toothServices, ...newMappings];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedServices));
+    console.log(updatedServices)
     setToothServices(updatedServices);
 
     // Update tooth colors
     selectedTeeth.forEach(tooth => {
       const element = document.getElementById(`click${tooth.id}`);
       if (element && selectedServices.length > 0) {
-        const paths = Array.from(element.children).filter(child => 
-          child.tagName.toLowerCase() === 'path'
-        ) as SVGPathElement[];
-        
-        const lastTwo = paths.slice(-2);
-        const color = selectedServices[0].categoryColor;
-        lastTwo.forEach(path => {
-          path.style.fill = color;
+        Array.from(element.children).forEach(child => {
+          if (child.tagName.toLowerCase() === 'path') {
+            const path = child as SVGPathElement;
+            // Skip paths that match the exclusion criteria (fill="black" and fill-opacity="0.71")
+            const fill = path.getAttribute('fill');
+            const fillOpacity = path.getAttribute('fill-opacity');
+            if (!(fill === 'black' && fillOpacity === '0.71')) {
+              path.style.fill = selectedServices[0].categoryColor;
+            }
+          }
         });
       }
     });
@@ -180,21 +201,30 @@ const Draft: React.FC = () => {
   };
 
   const handleClearAll = () => {
-    // Clear all tooth colors
-    const allTeethIds = Array.from({ length: 32 }, (_, i) => String(i + 1).padStart(2, '0'));
-    allTeethIds.forEach(id => {
-      const element = document.getElementById(`click${id}`);
-      if (element) {
-        const paths = Array.from(element.children).filter(child => 
-          child.tagName.toLowerCase() === 'path'
-        ) as SVGPathElement[];
-        
-        const lastTwo = paths.slice(-2);
-        lastTwo.forEach(path => {
-          path.style.fill = '#FAFAFA';
-        });
-      }
-    });
+    // Clear all tooth colors in both adult and milk teeth diagrams
+    const resetAllTeeth = (prefix: string) => {
+      // Reset adult teeth (1-32)
+      Array.from({ length: 32 }, (_, i) => String(i + 1).padStart(2, '0')).forEach(id => {
+        const element = document.getElementById(`${prefix}${id}`);
+        if (element) {
+          Array.from(element.children).forEach(child => {
+            if (child.tagName.toLowerCase() === 'path') {
+              const path = child as SVGPathElement;
+              // Skip paths that match the exclusion criteria (fill="black" and fill-opacity="0.71")
+              const fill = path.getAttribute('fill');
+              const fillOpacity = path.getAttribute('fill-opacity');
+              if (!(fill === 'black' && fillOpacity === '0.71')) {
+                path.style.fill = '#FAFAFA';
+              }
+            }
+          });
+        }
+      });
+    };
+
+    // Reset both adult and milk teeth diagrams
+    resetAllTeeth('click');
+    resetAllTeeth('milk');
 
     // Clear local storage and state
     localStorage.removeItem(STORAGE_KEY);
@@ -219,10 +249,11 @@ const Draft: React.FC = () => {
             selectedServices={selectedServices}
           />
 
-          <AppliedServicesList services={toothServices} />
-
           {toothServices.length > 0 && (
-            <CreateRecordForm services={toothServices} onClearAll={handleClearAll} />
+            <>
+              <AppliedServicesList services={toothServices} />
+              <CreateRecordForm services={toothServices} onClearAll={handleClearAll} />
+            </>
           )}
         </div>
       </div>
@@ -239,7 +270,7 @@ const Draft: React.FC = () => {
         showModal={showServiceModal}
         onClose={() => setShowServiceModal(false)}
         onApply={handleServiceApply}
-        selectedServices={[]}
+        selectedServices={selectedServices}
         modalTitle={`${selectedTeeth.length} ${t.applyToTeeth}`}
       />
     </div>

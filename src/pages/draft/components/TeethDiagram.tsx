@@ -5,6 +5,10 @@ import { ResponsiveTeethSvg } from '../../../components/ResponsiveTeethSvg';
 import { supabase } from '../../../lib/supabase';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
+import { DiagramSwitches } from './DiagramSwitches';
+import { ServicesList } from './ServicesList';
+
+const SERVICES_STORAGE_KEY = 'dentist_services';
 
 interface TeethDiagramProps {
   onTeethClick: (event: React.MouseEvent<SVGElement>) => void;
@@ -24,14 +28,21 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
   const t = translations[language].draft;
   const [services, setServices] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isMilkTeeth, setIsMilkTeeth] = useState(false);
+  const [showServices, setShowServices] = useState(false);
 
   useEffect(() => {
-    fetchServices();
-  }, []);
+    if (showServices) {
+      fetchServices();
+    }
+  }, [language, showServices]);
 
   const fetchServices = async () => {
     try {
       setError(null);
+      setLoading(true);
+      
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) {
@@ -39,6 +50,22 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
         return;
       }
 
+      // Try to get services from local storage first
+      const storedServices = localStorage.getItem(SERVICES_STORAGE_KEY);
+      if (storedServices) {
+        try {
+          const data = JSON.parse(storedServices);
+          const groupedServices = groupServicesByCategory(data);
+          setServices(Object.values(groupedServices) || []);
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.error('Error parsing stored services:', e);
+          localStorage.removeItem(SERVICES_STORAGE_KEY);
+        }
+      }
+
+      // If not in local storage or invalid, fetch from API
       const { data, error } = await supabase
         .from('dentist_services')
         .select(`
@@ -60,27 +87,11 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
 
       if (error) throw error;
 
-      // Group services by category
-      const groupedServices = data?.reduce((acc, service) => {
-        const categoryId = service.base_service.category.id;
-        if (!acc[categoryId]) {
-          acc[categoryId] = {
-            category: service.base_service.category,
-            services: []
-          };
-        }
-        acc[categoryId].services.push({
-          id: service.id,
-          name: language === 'uz' ? service.base_service.name_uz : service.base_service.name_ru,
-          price: service.price,
-          duration: service.duration,
-          warranty: service.warranty,
-          categoryId: service.base_service.category.id,
-          categoryColor: service.base_service.category.color
-        });
-        return acc;
-      }, {});
+      // Store in local storage
+      localStorage.setItem(SERVICES_STORAGE_KEY, JSON.stringify(data));
 
+      // Group services by category
+      const groupedServices = groupServicesByCategory(data);
       setServices(Object.values(groupedServices) || []);
     } catch (error: any) {
       console.error('Error fetching services:', error);
@@ -89,12 +100,49 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
       if (error.status === 401) {
         navigate('/login');
       }
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const groupServicesByCategory = (data: any[]) => {
+    return data.reduce((acc: any, service: any) => {
+      const categoryId = service.base_service.category.id;
+      if (!acc[categoryId]) {
+        acc[categoryId] = {
+          category: service.base_service.category,
+          services: []
+        };
+      }
+      acc[categoryId].services.push({
+        id: service.id,
+        name: language === 'uz' ? service.base_service.name_uz : service.base_service.name_ru,
+        price: service.price,
+        duration: service.duration,
+        warranty: service.warranty,
+        categoryId: service.base_service.category.id,
+        categoryColor: service.base_service.category.color
+      });
+      return acc;
+    }, {});
+  };
+
+  const handleTeethClick = (event: React.MouseEvent<SVGElement>) => {
+    // Call the parent click handler
+    onTeethClick(event);
+
   };
 
   return (
     <div className="bg-white shadow rounded-lg p-4">
-      <div className="flex justify-end mb-2">
+      <div className="flex justify-between items-center mb-4">
+        <DiagramSwitches
+          isMilkTeeth={isMilkTeeth}
+          setIsMilkTeeth={setIsMilkTeeth}
+          showServices={showServices}
+          setShowServices={setShowServices}
+        />
+
         <button
           onClick={onClearAll}
           className="flex items-center gap-1 bg-red-600 text-white px-2 py-1 rounded text-sm"
@@ -105,53 +153,46 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
       </div>
 
       <div className="lg:grid lg:grid-cols-8 lg:gap-6">
-        {/* Services List - Only visible on desktop */}
-        <div className="hidden lg:block lg:col-span-5 border-r pr-4">
-          <div className="h-[600px] overflow-y-auto pr-2">
-            {services.map((categoryGroup: any) => (
-              <div key={categoryGroup.category.id} className="mb-6">
-                <h3 className="font-medium text-gray-900 mb-3 sticky top-0 bg-white py-1">
-                  {language === 'uz' ? categoryGroup.category.name_uz : categoryGroup.category.name_ru}
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {categoryGroup.services.map((service: any) => {
-                    const isSelected = selectedServices.some(s => s.id === service.id);
-                    return (
-                      <button
-                        key={service.id}
-                        onClick={() => onServiceSelect(service)}
-                        className={`p-2 rounded-lg text-sm text-left transition-colors ${
-                          isSelected ? 'ring-2 ring-indigo-500' : ''
-                        }`}
-                        style={{ backgroundColor: `${categoryGroup.category.color}10` }}
-                      >
-                        <div>
-                          <span className="font-medium">{service.name}</span>
-                        </div>
-                        <div className="flex justify-between items-center mt-1">
-                          <span className="text-xs text-gray-500">
-                            {service.duration} • {service.warranty}
-                          </span>
-                          <span className="text-xs text-gray-900">
-                            {service.price.toLocaleString()} UZS
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {/* Add an empty div if there's only one service to maintain grid layout */}
-                  {categoryGroup.services.length % 2 === 1 && <div />}
-                </div>
-              </div>
-            ))}
+        {/* Services List - Only visible when showServices is true */}
+        {showServices && (
+          <div className="hidden lg:block lg:col-span-5 border-r pr-4">
+            <ServicesList
+              services={services}
+              loading={loading}
+              error={error}
+              selectedServices={selectedServices}
+              onServiceSelect={onServiceSelect}
+            />
           </div>
-        </div>
+        )}
 
-        {/* Teeth Diagram */}
-        <div className="lg:col-span-3">
-          <div className="h-[600px]">
-            <ResponsiveTeethSvg onClick={onTeethClick} />
-          </div>
+        {/* Diagrams */}
+        <div className={showServices ? "lg:col-span-3" : "lg:col-span-8"}>
+          {showServices ? (
+            // Show single diagram based on milk teeth switch
+            <div className="h-[600px]">
+              <ResponsiveTeethSvg 
+                onClick={handleTeethClick}
+                type={isMilkTeeth ? 'milk' : 'adult'}
+              />
+            </div>
+          ) : (
+            // Show both diagrams when services are off with 7.5% right offset
+            <div className="grid grid-cols-2 gap-4 ml-[7.5%] mr-[-7.5%]">
+              <div className="h-[600px]">
+                <ResponsiveTeethSvg 
+                  onClick={handleTeethClick}
+                  type={isMilkTeeth ? 'milk-module' : 'module'}
+                />
+              </div>
+              <div className="h-[600px]">
+                <ResponsiveTeethSvg 
+                  onClick={handleTeethClick}
+                  type={isMilkTeeth ? 'milk' : 'adult'}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
