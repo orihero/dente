@@ -1,12 +1,13 @@
+import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { AppointmentTimeline } from '../components/AppointmentTimeline';
-import { BottomNavigation } from '../components/BottomNavigation';
-import { DateNavigation } from '../components/DateNavigation';
-import { Header } from '../components/Header';
-import { NewAppointmentModal } from '../components/NewAppointmentModal';
-import { translations } from '../i18n/translations';
+import { supabase } from '../lib/supabase';
 import { useLanguageStore } from '../store/languageStore';
+import { translations } from '../i18n/translations';
+import { Header } from '../components/Header';
+import { BottomNavigation } from '../components/BottomNavigation';
+import { AppointmentTimeline } from '../components/AppointmentTimeline';
+import { DateNavigation } from '../components/DateNavigation';
+import { NewAppointmentModal } from '../components/NewAppointmentModal';
 
 export const Home: React.FC = () => {
   const { language } = useLanguageStore();

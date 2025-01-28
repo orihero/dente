@@ -1,16 +1,16 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from './store/authStore';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { DentistProfile } from './pages/DentistProfile';
-import Draft from './pages/Draft';
-import { Home } from './pages/home/index';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
-import { Profile } from './pages/Profile';
-import { UserDetails } from './pages/UserDetails';
+import Home from './pages/home';
 import { Users } from './pages/Users';
-import { useAuthStore } from './store/authStore';
+import { UserDetails } from './pages/UserDetails';
+import { Profile } from './pages/Profile';
+import Draft from './pages/Draft';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { DentistProfile } from './pages/DentistProfile';
 
 export default function App() {
   const { checkUser } = useAuthStore();

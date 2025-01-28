@@ -86,11 +86,11 @@ const Draft: React.FC = () => {
   };
 
   const handleTeethClick = (event: React.MouseEvent<SVGElement>) => {
-    const element = event.target as SVGElement;
-    const parentElement = element.parentElement;
+    // Find the closest parent element with an ID starting with 'click'
+    const clickableParent = (event.target as Element).closest('[id^="click"]');
     
-    if (parentElement?.id && parentElement.id.startsWith('click')) {
-      const toothId = parentElement.id.slice(-2); // Get last two characters
+    if (clickableParent?.id) {
+      const toothId = clickableParent.id.slice(-2); // Get last two characters
       
       // Check if tooth already has services applied
       const hasServices = toothServices.some(item => item.toothId === toothId);
@@ -103,7 +103,7 @@ const Draft: React.FC = () => {
         setSelectedTeeth(prev => prev.filter(tooth => tooth.id !== toothId));
         
         // Reset tooth color
-        const paths = Array.from(parentElement.children).filter(child => 
+        const paths = Array.from(clickableParent.children).filter(child => 
           child.tagName.toLowerCase() === 'path'
         ) as SVGPathElement[];
         
@@ -115,7 +115,7 @@ const Draft: React.FC = () => {
         setSelectedTeeth(prev => [...prev, { id: toothId, name: `${t.tooth} ${toothId}` }]);
         
         // Highlight tooth
-        const paths = Array.from(parentElement.children).filter(child => 
+        const paths = Array.from(clickableParent.children).filter(child => 
           child.tagName.toLowerCase() === 'path'
         ) as SVGPathElement[];
         
