@@ -68,19 +68,30 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       const { user } = useAuthStore.getState();
       if (!user) throw new Error('No user found');
 
+      // Validate required fields
+      if (!data.full_name?.trim()) {
+        throw new Error('Full name is required');
+      }
+
+      if (!data.phone?.trim()) {
+        throw new Error('Phone number is required');
+      }
+
       // Clean up the data object to ensure valid JSON
       const cleanData = {
-        full_name: data.full_name || '',
-        phone: data.phone || '',
+        full_name: data.full_name.trim(),
+        phone: data.phone.trim(),
         experience: parseInt(data.experience) || 0,
         birthdate: data.birthdate || null,
         photo_url: data.photo_url || null,
         social_media: {
           platforms: Array.isArray(data.social_media?.platforms) 
-            ? data.social_media.platforms.map((p: any) => ({
-                platform: String(p.platform || ''),
-                url: String(p.url || '')
-              }))
+            ? data.social_media.platforms
+                .filter((p: any) => p.platform?.trim() && p.url?.trim()) // Filter out empty platforms
+                .map((p: any) => ({
+                  platform: String(p.platform || '').trim(),
+                  url: String(p.url || '').trim()
+                }))
             : []
         }
       };

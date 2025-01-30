@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Percent } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
@@ -33,9 +34,11 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
 }) => {
   const navigate = useNavigate();
   const { language } = useLanguageStore();
+  const location = useLocation();
   const t = translations[language].draft;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appliedDiscount, setAppliedDiscount] = useState<number | null>(null);
   const [data, setData] = useState({
     phone: '',
     full_name: '',
@@ -52,6 +55,27 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
       0
     ).toString()
   });
+
+  // Initialize form with patient data from appointment if available
+  useEffect(() => {
+    const patientData = location.state?.patient;
+    if (patientData) {
+      setData(prev => ({
+        ...prev,
+        phone: patientData.phone || '',
+        full_name: patientData.full_name || '',
+        birthdate: patientData.birthdate || '',
+        address: patientData.address || ''
+      }));
+    }
+  }, [location.state]);
+
+  const discounts = [
+    { value: 5, label: '5%' },
+    { value: 10, label: '10%' },
+    { value: 12, label: '12%' },
+    { value: 15, label: '15%' }
+  ];
 
   // Check for existing patient when phone number is entered
   useEffect(() => {
@@ -97,6 +121,33 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
     checkPatient();
   }, [data.phone]);
 
+  const handleApplyDiscount = (discountPercent: number) => {
+    const basePrice = services.reduce(
+      (sum, toothService) => sum + toothService.services.reduce(
+        (serviceSum, service) => serviceSum + service.price,
+        0
+      ),
+      0
+    );
+
+    if (appliedDiscount === discountPercent) {
+      // Remove discount
+      setAppliedDiscount(null);
+      setData(prev => ({
+        ...prev,
+        total_price: basePrice.toString()
+      }));
+    } else {
+      // Apply new discount
+      setAppliedDiscount(discountPercent);
+      const discountedPrice = basePrice * (1 - discountPercent / 100);
+      setData(prev => ({
+        ...prev,
+        total_price: Math.round(discountedPrice).toString()
+      }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -106,10 +157,6 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      // Remove all non-digit characters from phone number
-      const normalizedPhone = data.phone.replace(/\D/g, '');
-
-      // First create or get patient
       let patientId: string;
       let isNewPatient = false;
 
@@ -117,7 +164,7 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
       const { data: existingPatient, error: patientError } = await supabase
         .from('patients')
         .select('id, telegram_registered, full_name')
-        .eq('phone', normalizedPhone)
+        .eq('phone', data.phone)
         .maybeSingle();
 
       if (patientError && patientError.code !== 'PGRST116') {
@@ -133,7 +180,7 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
           .insert({
             dentist_id: user.id,
             full_name: data.full_name,
-            phone: normalizedPhone,
+            phone: data.phone,
             birthdate: data.birthdate,
             address: data.address
           })
@@ -227,7 +274,7 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
 
           // Send SMS
           await sendSMS({
-            phone: normalizedPhone,
+            phone: data.phone,
             text: smsText
           });
         } catch (error) {
@@ -362,14 +409,36 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-between items-center pt-4 border-t">
-          <div>
-            <span className="text-sm text-gray-600">{t.totalAmount}:</span>
-            <CurrencyInput
-              value={data.total_price}
-              onChange={(value) => setData({ ...data, total_price: value })}
-              className="ml-2 text-2xl font-bold text-gray-900 w-48 bg-transparent"
-            />
+        <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">{t.totalAmount}:</span>
+              <CurrencyInput
+                value={data.total_price}
+                onChange={(value) => setData({ ...data, total_price: value })}
+                className="text-2xl font-bold text-gray-900 w-48 bg-transparent"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Percent className="w-4 h-4 text-gray-500" />
+              <div className="flex gap-2">
+                {discounts.map((discount) => (
+                  <button
+                    key={discount.value}
+                    type="button"
+                    onClick={() => handleApplyDiscount(discount.value)}
+                    className={`px-3 py-1 rounded text-sm ${
+                      appliedDiscount === discount.value
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {discount.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <button

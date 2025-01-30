@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock, Play, Edit } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { formatTime } from '../../../utils/dateUtils';
@@ -32,8 +33,28 @@ export const AppointmentTimeline: React.FC<AppointmentTimelineProps> = ({
   onStartAppointment,
   onEditAppointment
 }) => {
+  const navigate = useNavigate();
   const { language } = useLanguageStore();
   const t = translations[language].home;
+
+  const handleStartAppointment = (e: React.MouseEvent, appointment: Appointment) => {
+    e.stopPropagation();
+    
+    // Clear any existing tooth services from local storage
+    localStorage.removeItem('tooth_services');
+
+    // Navigate to draft page with patient data
+    navigate('/draft', { 
+      state: { 
+        patient: {
+          id: appointment.patient.id,
+          full_name: appointment.patient.full_name,
+          phone: appointment.patient.phone,
+          birthdate: appointment.patient.birthdate
+        }
+      }
+    });
+  };
 
   if (appointments.length === 0) {
     return <div className="text-center py-8 text-gray-500">{t.noAppointments}</div>;
@@ -65,10 +86,7 @@ export const AppointmentTimeline: React.FC<AppointmentTimelineProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onStartAppointment(appointment);
-                    }}
+                    onClick={(e) => handleStartAppointment(e, appointment)}
                     className="flex items-center gap-2 px-3 py-2 text-green-600 hover:bg-green-50 rounded-md transition-colors"
                     title={language === 'uz' ? "Qabulni boshlash" : "Начать приём"}
                   >

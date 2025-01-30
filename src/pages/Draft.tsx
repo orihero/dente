@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { ApplyServiceModal } from './users/components/ApplyServiceModal';
@@ -31,6 +32,7 @@ const STORAGE_KEY = 'tooth_services';
 
 const Draft: React.FC = () => {
   const { language } = useLanguageStore();
+  const location = useLocation();
   const t = translations[language].draft;
   const [selectedTeeth, setSelectedTeeth] = useState<SelectedTooth[]>([]);
   const [showServiceModal, setShowServiceModal] = useState(false);
@@ -95,7 +97,6 @@ const Draft: React.FC = () => {
   };
 
   const handleTeethClick = (event: React.MouseEvent<SVGElement>) => {
-    console.log("Teeth clicked")
     // Find the closest parent element with an ID starting with 'click'
     const clickableParent = (event.target as Element).closest('[id^="click"]');
     if (!clickableParent) return; // Exit if no valid parent is found
@@ -155,7 +156,7 @@ const Draft: React.FC = () => {
   };
 
   const handleServiceApply = () => {
-    console.log(selectedServices)
+    // Open the service modal if no services are selected
     if (selectedServices.length === 0) {
       setShowServiceModal(true);
       return;
@@ -174,7 +175,6 @@ const Draft: React.FC = () => {
     // Update local storage
     const updatedServices = [...toothServices, ...newMappings];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedServices));
-    console.log(updatedServices)
     setToothServices(updatedServices);
 
     // Update tooth colors
@@ -198,6 +198,7 @@ const Draft: React.FC = () => {
     // Clear selected teeth and services
     setSelectedTeeth([]);
     setSelectedServices([]);
+    setShowServiceModal(false);
   };
 
   const handleClearAll = () => {
@@ -249,10 +250,16 @@ const Draft: React.FC = () => {
             selectedServices={selectedServices}
           />
 
-          {toothServices.length > 0 && (
+          {/* Always show CreateRecordForm if patient data exists */}
+          {(toothServices.length > 0 || location.state?.patient) && (
             <>
-              <AppliedServicesList services={toothServices} />
-              <CreateRecordForm services={toothServices} onClearAll={handleClearAll} />
+              {toothServices.length > 0 && (
+                <AppliedServicesList services={toothServices} />
+              )}
+              <CreateRecordForm 
+                services={toothServices} 
+                onClearAll={handleClearAll} 
+              />
             </>
           )}
         </div>
@@ -260,7 +267,7 @@ const Draft: React.FC = () => {
 
       <SelectedTeethBar
         selectedTeeth={selectedTeeth}
-        onApplyServices={handleServiceApply}
+        onApplyServices={() => setShowServiceModal(true)}
         disabled={selectedTeeth.length === 0}
       />
 

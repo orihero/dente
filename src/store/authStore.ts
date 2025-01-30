@@ -24,24 +24,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkUser: async () => {
     try {
-      // Don't check again if already initialized and not loading
-      if (get().initialized && !get().loading) {
-        return;
-      }
-
+      console.log('🔍 Starting checkUser function');
+      
+      // Always check session validity
+      console.log('⏳ Setting loading state to true');
       set({ loading: true, error: null });
 
       // Get session and handle potential network errors
+      console.log('🔑 Fetching auth session...');
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('📦 Session data:', session ? { 
+        id: session.user?.id,
+        email: session.user?.email,
+        expires_at: session.expires_at
+      } : null);
       
       if (sessionError) {
+        console.error('❌ Session error:', sessionError);
         // Handle network errors specifically
         if (sessionError.message?.includes('Failed to fetch')) {
           // If we haven't exceeded max retries, try again
           if (get().retryCount < get().maxRetries) {
-            set(state => ({ retryCount: state.retryCount + 1 }));
+            const retryCount = get().retryCount + 1;
+            console.log(`🔄 Retry attempt ${retryCount} of ${get().maxRetries}`);
+            set(state => ({ retryCount }));
             // Exponential backoff
             const delay = Math.pow(2, get().retryCount) * 1000;
+            console.log(`⏰ Waiting ${delay}ms before retry`);
             await new Promise(resolve => setTimeout(resolve, delay));
             return get().checkUser();
           }
@@ -51,10 +60,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       // Reset retry count on successful request
+      console.log('✅ Resetting retry count');
       set({ retryCount: 0 });
 
       // If no session, clear state
       if (!session) {
+        console.log('⚠️ No session found, clearing state');
         set({ 
           user: null, 
           isAdmin: false, 
@@ -65,62 +76,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      // Set up auth state change listener
-      const {
-        data: { subscription }
-      } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          set({ 
-            user: null, 
-            isAdmin: false, 
-            loading: false, 
-            initialized: true, 
-            error: null 
-          });
-        } else if (session) {
-          try {
-            // Check if user is admin
-            const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin_dentist');
-
-            if (adminError) {
-              // Handle network errors specifically
-              if (adminError.message?.includes('Failed to fetch')) {
-                throw new Error('Network connection error. Please check your internet connection and try again.');
-              }
-              throw adminError;
-            }
-
-            set({ 
-              user: session.user,
-              isAdmin: !!isAdmin,
-              loading: false,
-              initialized: true,
-              error: null
-            });
-          } catch (error: any) {
-            console.error('Error checking admin status:', error);
-            // Set a user-friendly error message
-            set({ 
-              error: error.message || 'An error occurred while checking authentication. Please try again.',
-              loading: false,
-              initialized: true
-            });
-
-            // If it's a network error and we haven't exceeded max retries, try again
-            if (error.message?.includes('Failed to fetch') && get().retryCount < get().maxRetries) {
-              set(state => ({ retryCount: state.retryCount + 1 }));
-              const delay = Math.pow(2, get().retryCount) * 1000;
-              await new Promise(resolve => setTimeout(resolve, delay));
-              return get().checkUser();
-            }
-          }
-        }
-      });
-
       // Check if user is admin
+      console.log('👑 Checking admin status...');
       const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin_dentist');
+      console.log('📦 Admin check result:', { isAdmin, error: adminError });
 
       if (adminError) {
+        console.error('❌ Admin check error:', adminError);
         // Handle network errors specifically
         if (adminError.message?.includes('Failed to fetch')) {
           throw new Error('Network connection error. Please check your internet connection and try again.');
@@ -128,6 +90,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw adminError;
       }
 
+      console.log('✅ Setting final state', {
+        userId: session.user.id,
+        isAdmin: !!isAdmin,
+        initialized: true
+      });
+      
       set({ 
         user: session.user,
         isAdmin: !!isAdmin,
@@ -136,14 +104,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null
       });
 
-      // Cleanup subscription on unmount
-      return () => {
-        subscription.unsubscribe();
-      };
     } catch (error: any) {
-      console.error('Auth error:', error);
+      console.error('❌ Auth error:', error);
       
       // Set a user-friendly error message
+      console.log('⚠️ Setting error state');
       set({ 
         user: null, 
         isAdmin: false, 
@@ -154,14 +119,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // If it's a network error and we haven't exceeded max retries, try again
       if (error.message?.includes('Failed to fetch') && get().retryCount < get().maxRetries) {
-        set(state => ({ retryCount: state.retryCount + 1 }));
+        const retryCount = get().retryCount + 1;
+        console.log(`🔄 Network error retry attempt ${retryCount} of ${get().maxRetries}`);
+        set(state => ({ retryCount }));
         const delay = Math.pow(2, get().retryCount) * 1000;
+        console.log(`⏰ Waiting ${delay}ms before retry`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return get().checkUser();
       }
 
       // If it's an auth error, sign out
       if (error.status === 401) {
+        console.log('🚪 Auth error detected, signing out');
         await supabase.auth.signOut();
       }
     }
@@ -169,7 +138,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     try {
+      console.log('🚪 Starting sign out process');
       await supabase.auth.signOut();
+      console.log('✅ Successfully signed out, clearing state');
       set({ 
         user: null, 
         isAdmin: false, 
@@ -179,7 +150,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         retryCount: 0
       });
     } catch (error: any) {
-      console.error('Error signing out:', error);
+      console.error('❌ Error signing out:', error);
       set({ 
         error: error.message || 'An error occurred while signing out. Please try again.',
         retryCount: 0

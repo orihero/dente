@@ -75,8 +75,8 @@ export const handleMenu = async (bot: any, msg: Message) => {
                     `*${escape_markdown_v2(t.doctor.experience)}:* ${dentist.experience} ${escape_markdown_v2(t.doctor.years)}\n\n`;
 
           // Add referral link
-          const publicProfileUrl = `${process.env.PUBLIC_URL || 'https://dente.uz'}/refer/${patient.id}`;
-          message += `*${escape_markdown_v2(t.doctor.referralLink)}:*\n${escape_markdown_v2(publicProfileUrl)}\n\n`;
+          message += `*${escape_markdown_v2(t.doctor.referralLink)}:*\n` +
+                    `https://t\\.me/denteuzbot\\?start\\=${patient.id}\n\n`;
 
           // Social media links
           if (dentist.social_media?.platforms?.length > 0) {
@@ -202,13 +202,33 @@ export const handleMenu = async (bot: any, msg: Message) => {
         );
         break;
 
-      case t.settings.referralProgram:
-        await bot.sendMessage(
-          chatId,
-          escape_markdown_v2(t.comingSoon.referral),
-          { parse_mode: 'MarkdownV2' }
-        );
+      case t.settings.referralProgram: {
+        try {
+          // Format message with bot referral link
+          const message = patient.language === 'uz'
+            ? `🔗 *Referal dasturi*\n\n` +
+              `Sizning referal havolangiz:\n` +
+              `https://t\\.me/denteuzbot\\?start\\=${patient.id}\n\n` +
+              `Bu havola orqali ro'yxatdan o'tgan har bir bemor uchun bonus olasiz\\!`
+            : `🔗 *Реферальная программа*\n\n` +
+              `Ваша реферальная ссылка:\n` +
+              `https://t\\.me/denteuzbot\\?start\\=${patient.id}\n\n` +
+              `Вы получите бонус за каждого пациента, зарегистрировавшегося по этой ссылке\\!`;
+
+          await bot.sendMessage(chatId, message, {
+            parse_mode: 'MarkdownV2',
+            disable_web_page_preview: true
+          });
+        } catch (error) {
+          console.error('Error handling referral program:', error);
+          await bot.sendMessage(
+            chatId,
+            escape_markdown_v2(t.comingSoon.referral),
+            { parse_mode: 'MarkdownV2' }
+          );
+        }
         break;
+      }
     }
   } catch (error) {
     console.error('Error handling menu:', error);
