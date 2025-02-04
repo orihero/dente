@@ -172,13 +172,13 @@ export const DentistsTable: React.FC = () => {
                   {language === 'uz' ? 'Ism' : 'Имя'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {language === 'uz' ? 'Email' : 'Email'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {language === 'uz' ? 'Telefon' : 'Телефон'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {language === 'uz' ? 'Klinika' : 'Клиника'}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  {language === 'uz' ? 'Tajriba' : 'Опыт'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {language === 'uz' ? 'Obuna holati' : 'Статус подписки'}
@@ -196,6 +196,11 @@ export const DentistsTable: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {dentist.full_name}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {dentist.email}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -220,11 +225,6 @@ export const DentistsTable: React.FC = () => {
                             </option>
                           ))}
                         </select>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {dentist.experience} {language === 'uz' ? 'yil' : 'лет'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

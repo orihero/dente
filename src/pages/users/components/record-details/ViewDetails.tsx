@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Clock, Shield, Send } from 'lucide-react';
 import { useLanguageStore } from '../../../../store/languageStore';
+import { translations } from '../../../../i18n/translations';
 import { FilesList } from './FilesList';
 import { SendRecipeModal } from './SendRecipeModal';
 
@@ -94,19 +95,10 @@ export const ViewDetails: React.FC<ViewDetailsProps> = ({
 
       <button
         onClick={() => setShowSendRecipeModal(true)}
-        disabled={record.recipe_sent}
-        className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-          record.recipe_sent
-            ? 'bg-green-100 text-green-800 cursor-not-allowed'
-            : 'bg-indigo-600 text-white hover:bg-indigo-700'
-        }`}
+        className="flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
       >
         <Send className="w-4 h-4" />
-        <span>
-          {record.recipe_sent
-            ? t.sent
-            : t.sendRecipe}
-        </span>
+        <span>{t.sendRecipe}</span>
       </button>
 
       <SendRecipeModal

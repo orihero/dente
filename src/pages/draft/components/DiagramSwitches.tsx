@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bluetooth as Tooth, List } from 'lucide-react';
+import { Bluetooth as Tooth, List, Sidebar as LayoutSidebarRight } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { Switch } from '../../../components/Switch';
 
@@ -8,13 +8,17 @@ interface DiagramSwitchesProps {
   setIsMilkTeeth: (value: boolean) => void;
   showServices: boolean;
   setShowServices: (value: boolean) => void;
+  diagramRight: boolean;
+  setDiagramRight: (value: boolean) => void;
 }
 
 export const DiagramSwitches: React.FC<DiagramSwitchesProps> = ({
   isMilkTeeth,
   setIsMilkTeeth,
   showServices,
-  setShowServices
+  setShowServices,
+  diagramRight,
+  setDiagramRight
 }) => {
   const { language } = useLanguageStore();
 
@@ -25,9 +29,13 @@ export const DiagramSwitches: React.FC<DiagramSwitchesProps> = ({
   };
 
   const handleServicesChange = (e: React.MouseEvent<HTMLDivElement>) => {
-    console.log("SERVICE CLICKED")
     e.stopPropagation(); // Stop event from reaching the diagram
     setShowServices(!showServices);
+  };
+
+  const handleDiagramRightChange = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation(); // Stop event from reaching the diagram
+    setDiagramRight(!diagramRight);
   };
 
   return (
@@ -61,6 +69,23 @@ export const DiagramSwitches: React.FC<DiagramSwitchesProps> = ({
           onChange={() => {}} // Handle change in parent onClick instead
         />
       </div>
+
+      {/* Only show Diagram Right switch when services are enabled */}
+      {showServices && (
+        <div 
+          className="flex items-center gap-2"
+          onClick={handleDiagramRightChange}
+        >
+          <LayoutSidebarRight className="w-5 h-5 text-gray-500" />
+          <span className="text-sm text-gray-700">
+            {language === 'uz' ? 'O\'ng diagramma' : 'Правая диаграмма'}
+          </span>
+          <Switch
+            checked={diagramRight}
+            onChange={() => {}} // Handle change in parent onClick instead
+          />
+        </div>
+      )}
     </div>
   );
 };

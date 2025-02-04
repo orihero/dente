@@ -25,9 +25,17 @@ interface Appointment {
   notes: string;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   patient: Patient;
+  services?: Array<{
+    id: string;
+    name: string;
+    price: number;
+    duration: string;
+    warranty: string;
+  }>;
 }
 
 export const Home: React.FC = () => {
+  const navigate = useNavigate();
   const { language } = useLanguageStore();
   const t = translations[language].home;
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -47,7 +55,8 @@ export const Home: React.FC = () => {
     phone: '',
     full_name: '',
     address: '',
-    birthdate: ''
+    birthdate: '',
+    services: [] as any[]
   });
 
   useEffect(() => {
@@ -73,7 +82,20 @@ export const Home: React.FC = () => {
         .from('appointments')
         .select(`
           *,
-          patient:patients(*)
+          patient:patients(*),
+          services:appointment_services(
+            id,
+            service:dentist_services(
+              id,
+              price,
+              duration,
+              warranty,
+              base_service:base_services(
+                name_uz,
+                name_ru
+              )
+            )
+          )
         `)
         .gte('appointment_time', startOfDay.toISOString())
         .lte('appointment_time', endOfDay.toISOString())
@@ -118,14 +140,33 @@ export const Home: React.FC = () => {
 
       const appointmentTime = new Date(appointmentData.appointment_date + 'T' + appointmentData.appointment_time);
 
-      const { data: appointment, error } = await supabase.from('appointments').insert({
-        dentist_id: user.id,
-        patient_id: patientId,
-        appointment_time: appointmentTime.toISOString(),
-        notes: appointmentData.notes
-      }).select().single();
+      // Create appointment
+      const { data: appointment, error } = await supabase
+        .from('appointments')
+        .insert({
+          dentist_id: user.id,
+          patient_id: patientId,
+          appointment_time: appointmentTime.toISOString(),
+          notes: appointmentData.notes
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Create appointment services if any
+      if (appointmentData.services && appointmentData.services.length > 0) {
+        const { error: servicesError } = await supabase
+          .from('appointment_services')
+          .insert(
+            appointmentData.services.map((service: any) => ({
+              appointment_id: appointment.id,
+              service_id: service.id
+            }))
+          );
+
+        if (servicesError) throw servicesError;
+      }
 
       await fetchAppointments();
       setShowAppointmentModal(false);
@@ -137,7 +178,8 @@ export const Home: React.FC = () => {
         phone: '',
         full_name: '',
         address: '',
-        birthdate: ''
+        birthdate: '',
+        services: []
       });
     } catch (error) {
       console.error('Error creating appointment:', error);

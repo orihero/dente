@@ -67,19 +67,19 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ payments, onRecordCl
       <div className="bg-gray-50 p-4 rounded-lg mb-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <span className="text-sm text-gray-600">Total Records Price:</span>
+            <span className="text-sm text-gray-600">{t.totalAmount}:</span>
             <div className="text-lg font-bold text-red-600">
               {totalRecordsPrice.toLocaleString()} UZS
             </div>
           </div>
           <div>
-            <span className="text-sm text-gray-600">Total Payments:</span>
+            <span className="text-sm text-gray-600">{t.paid}:</span>
             <div className="text-lg font-bold text-green-600">
               {totalPayments.toLocaleString()} UZS
             </div>
           </div>
           <div className="col-span-2">
-            <span className="text-sm text-gray-600">Balance:</span>
+            <span className="text-sm text-gray-600">{t.balance}:</span>
             <div className={`text-lg font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {balance >= 0 ? '+' : ''}{balance.toLocaleString()} UZS
             </div>
@@ -104,10 +104,10 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ payments, onRecordCl
                     className="mt-1 cursor-pointer hover:bg-gray-50 rounded p-2 -ml-2 transition-colors inline-block"
                   >
                     <p className="text-sm text-gray-500">
-                      Record #{formatRecordNumber(payment.record.record_number)}
+                      {t.record} #{formatRecordNumber(payment.record.record_number)}
                     </p>
                     <p className="text-sm font-medium text-red-600">
-                      Record Price: {payment.record.total_price.toLocaleString()} UZS
+                      {t.totalAmount}: {payment.record.total_price.toLocaleString()} UZS
                     </p>
                   </div>
                 )}

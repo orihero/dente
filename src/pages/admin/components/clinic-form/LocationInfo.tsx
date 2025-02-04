@@ -4,12 +4,9 @@ import { useLanguageStore } from '../../../../store/languageStore';
 
 interface LocationInfoProps {
   data: {
-    city_uz: string;
-    city_ru: string;
-    district_uz: string;
-    district_ru: string;
-    address_uz: string;
-    address_ru: string;
+    city: string;
+    district: string;
+    address: string;
     geo_location: {
       lat: number;
       lng: number;
@@ -24,6 +21,15 @@ export const LocationInfo: React.FC<LocationInfoProps> = ({
 }) => {
   const { language } = useLanguageStore();
 
+  // Helper function to update both language versions
+  const handleChange = (field: 'city' | 'district' | 'address', value: string) => {
+    onChange({
+      [`${field}_uz`]: value,
+      [`${field}_ru`]: value,
+      [field]: value
+    });
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900 flex items-center gap-2">
@@ -34,84 +40,43 @@ export const LocationInfo: React.FC<LocationInfoProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            {language === 'uz' ? 'Shahar (O\'zbekcha)' : 'Город (Узбекский)'}
+            {language === 'uz' ? 'Shahar' : 'Город'}
           </label>
           <input
             type="text"
             required
-            value={data.city_uz}
-            onChange={(e) => onChange({ city_uz: e.target.value })}
+            value={data.city}
+            onChange={(e) => handleChange('city', e.target.value)}
             className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            {language === 'uz' ? 'Shahar (Ruscha)' : 'Город (Русский)'}
+            {language === 'uz' ? 'Tuman' : 'Район'}
           </label>
           <input
             type="text"
             required
-            value={data.city_ru}
-            onChange={(e) => onChange({ city_ru: e.target.value })}
+            value={data.district}
+            onChange={(e) => handleChange('district', e.target.value)}
             className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            {language === 'uz' ? 'Tuman (O\'zbekcha)' : 'Район (Узбекский)'}
+            {language === 'uz' ? 'Manzil' : 'Адрес'}
           </label>
           <input
             type="text"
             required
-            value={data.district_uz}
-            onChange={(e) => onChange({ district_uz: e.target.value })}
+            value={data.address}
+            onChange={(e) => handleChange('address', e.target.value)}
             className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {language === 'uz' ? 'Tuman (Ruscha)' : 'Район (Русский)'}
-          </label>
-          <input
-            type="text"
-            required
-            value={data.district_ru}
-            onChange={(e) => onChange({ district_ru: e.target.value })}
-            className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {language === 'uz' ? 'Manzil (O\'zbekcha)' : 'Адрес (Узбекский)'}
-          </label>
-          <input
-            type="text"
-            required
-            value={data.address_uz}
-            onChange={(e) => onChange({ address_uz: e.target.value })}
-            className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            {language === 'uz' ? 'Manzil (Ruscha)' : 'Адрес (Русский)'}
-          </label>
-          <input
-            type="text"
-            required
-            value={data.address_ru}
-            onChange={(e) => onChange({ address_ru: e.target.value })}
-            className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             {language === 'uz' ? 'Kenglik' : 'Широта'}

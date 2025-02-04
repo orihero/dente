@@ -26,7 +26,6 @@ export const DentistForm: React.FC<DentistFormProps> = ({
     password: '',
     full_name: '',
     phone: '',
-    experience: '0',
     type: 'regular',
     clinic_id: '',
     subscription_months: ''
@@ -39,7 +38,6 @@ export const DentistForm: React.FC<DentistFormProps> = ({
         password: '',
         full_name: dentist.full_name || '',
         phone: dentist.phone || '',
-        experience: dentist.experience?.toString() || '0',
         type: dentist.type || 'regular',
         clinic_id: dentist.clinic_id || '',
         subscription_months: ''
@@ -51,7 +49,6 @@ export const DentistForm: React.FC<DentistFormProps> = ({
         password: '',
         full_name: '',
         phone: '',
-        experience: '0',
         type: 'regular',
         clinic_id: '',
         subscription_months: ''
@@ -61,9 +58,9 @@ export const DentistForm: React.FC<DentistFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    
     try {
+      setError(null);
+
       // Ensure admin access first
       await ensureAdmin();
 
@@ -74,7 +71,6 @@ export const DentistForm: React.FC<DentistFormProps> = ({
           .update({
             full_name: data.full_name,
             phone: data.phone,
-            experience: parseInt(data.experience),
             type: data.type,
             clinic_id: data.clinic_id || null
           })
@@ -112,7 +108,6 @@ export const DentistForm: React.FC<DentistFormProps> = ({
           .update({
             full_name: data.full_name,
             phone: data.phone,
-            experience: parseInt(data.experience),
             type: data.type,
             clinic_id: data.clinic_id || null
           })
@@ -206,20 +201,6 @@ export const DentistForm: React.FC<DentistFormProps> = ({
         <PhoneInput
           value={data.phone}
           onChange={(value) => setData({ ...data, phone: value })}
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {language === 'uz' ? 'Tajriba (yil)' : 'Опыт (лет)'}
-        </label>
-        <input
-          type="number"
-          required
-          min="0"
-          value={data.experience}
-          onChange={(e) => setData({ ...data, experience: e.target.value })}
-          className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
         />
       </div>
 

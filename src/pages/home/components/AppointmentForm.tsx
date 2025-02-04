@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { PhoneInput } from '../../../components/PhoneInput';
 import { DatePicker } from '../../../components/DatePicker';
 import { supabase } from '../../../lib/supabase';
+import { ApplyServiceModal } from '../../users/components/ApplyServiceModal';
 
 interface AppointmentFormProps {
   loading: boolean;
@@ -17,6 +19,7 @@ interface AppointmentFormProps {
     full_name: string;
     address: string;
     birthdate: string;
+    services: any[];
   };
   setData: (data: any) => void;
 }
@@ -30,6 +33,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const { language } = useLanguageStore();
   const t = translations[language].home;
   const [isExistingPatient, setIsExistingPatient] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
 
   const handlePhoneChange = async (value: string) => {
     setData({ ...data, phone: value });
@@ -82,6 +86,10 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
       slots.push(`${hour.toString().padStart(2, '0')}:00`);
     }
     return slots;
+  };
+
+  const handleServiceSelect = (services: any[]) => {
+    setData({ ...data, services });
   };
 
   return (
@@ -210,6 +218,44 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         </div>
       </div>
 
+      {/* Services Section */}
+      <div>
+        <div className="flex justify-between items-center mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            {language === 'uz' ? 'Xizmatlar' : 'Услуги'}
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowServiceModal(true)}
+            className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-500"
+          >
+            <Plus className="w-4 h-4" />
+            {language === 'uz' ? 'Xizmat qo\'shish' : 'Добавить услугу'}
+          </button>
+        </div>
+        
+        {data.services && data.services.length > 0 ? (
+          <div className="space-y-2">
+            {data.services.map((service, index) => (
+              <div key={index} className="bg-gray-50 p-3 rounded-md">
+                <div className="flex justify-between">
+                  <span className="font-medium">{service.name}</span>
+                  <span>{service.price.toLocaleString()} UZS</span>
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  {language === 'uz' ? 'Davomiyligi' : 'Длительность'}: {service.duration} • 
+                  {language === 'uz' ? 'Kafolat' : 'Гарантия'}: {service.warranty}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-md">
+            {language === 'uz' ? 'Xizmatlar qo\'shilmagan' : 'Нет добавленных услуг'}
+          </div>
+        )}
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {t.notes}
@@ -224,11 +270,18 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !data.phone || !data.full_name || !data.birthdate}
         className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
       >
         {loading ? t.creating : t.create}
       </button>
+
+      <ApplyServiceModal
+        showModal={showServiceModal}
+        onClose={() => setShowServiceModal(false)}
+        onApply={handleServiceSelect}
+        selectedServices={data.services || []}
+      />
     </form>
   );
 };

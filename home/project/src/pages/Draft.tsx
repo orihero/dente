@@ -28,27 +28,7 @@ interface ToothService {
   }>;
 }
 
-interface DraftState {
-  toothServices: ToothService[];
-  totalPrice: number;
-  formData: {
-    phone: string;
-    full_name: string;
-    birthdate: string;
-    address: string;
-    diagnosis: string;
-    initial_payment: string;
-    payment_type: string;
-    total_price: string;
-  };
-  diagramState: {
-    isMilkTeeth: boolean;
-    showServices: boolean;
-    diagramRight: boolean;
-  };
-}
-
-const STORAGE_KEY = 'draft_state';
+const STORAGE_KEY = 'tooth_services';
 
 const Draft: React.FC = () => {
   const { language } = useLanguageStore();
@@ -61,42 +41,25 @@ const Draft: React.FC = () => {
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
 
-  // Load state from local storage on mount
   useEffect(() => {
-    const savedState = localStorage.getItem(STORAGE_KEY);
-    if (savedState) {
-      const state: DraftState = JSON.parse(savedState);
-      setToothServices(state.toothServices);
-      setTotalPrice(state.totalPrice);
+    // Load tooth services from local storage on mount
+    const savedServices = localStorage.getItem(STORAGE_KEY);
+    if (savedServices) {
+      const parsedServices = JSON.parse(savedServices);
+      setToothServices(parsedServices);
+      
+      // Calculate initial total price
+      const total = parsedServices.reduce((sum: number, item: ToothService) => {
+        return sum + item.services.reduce((serviceSum: number, service) => {
+          return serviceSum + service.price;
+        }, 0);
+      }, 0);
+      setTotalPrice(total);
       
       // Apply colors to teeth that have services
-      applyTeethColors(state.toothServices);
+      applyTeethColors(parsedServices);
     }
   }, []);
-
-  // Save state to local storage whenever it changes
-  useEffect(() => {
-    const state: DraftState = {
-      toothServices,
-      totalPrice,
-      formData: {
-        phone: '',
-        full_name: '',
-        birthdate: '',
-        address: '',
-        diagnosis: '',
-        initial_payment: '',
-        payment_type: '',
-        total_price: totalPrice.toString()
-      },
-      diagramState: {
-        isMilkTeeth: false,
-        showServices: false,
-        diagramRight: false
-      }
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [toothServices, totalPrice]);
 
   // Helper function to apply colors to teeth
   const applyTeethColors = (services: ToothService[]) => {
@@ -221,8 +184,9 @@ const Draft: React.FC = () => {
       }))
     }));
 
-    // Update state and local storage
+    // Update local storage
     const updatedServices = [...toothServices, ...newMappings];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedServices));
     setToothServices(updatedServices);
 
     // Calculate new total price

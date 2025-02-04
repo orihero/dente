@@ -1,10 +1,10 @@
 import React from 'react';
-import { LayoutDashboard, Users, PhoneCall, Calendar, FileText, Settings, Building2 } from 'lucide-react';
+import { LayoutDashboard, Users, PhoneCall, Settings, Building2, Tag, List, MessageSquare } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 
 interface AdminSidebarProps {
-  activeTab: 'overview' | 'leads' | 'dentists' | 'appointments' | 'records' | 'settings' | 'clinics';
-  onTabChange: (tab: 'overview' | 'leads' | 'dentists' | 'appointments' | 'records' | 'settings' | 'clinics') => void;
+  activeTab: 'overview' | 'leads' | 'dentists' | 'service_categories' | 'base_services' | 'settings' | 'clinics' | 'requests';
+  onTabChange: (tab: 'overview' | 'leads' | 'dentists' | 'service_categories' | 'base_services' | 'settings' | 'clinics' | 'requests') => void;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
@@ -35,14 +35,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       icon: PhoneCall
     },
     {
-      id: 'appointments',
-      label: language === 'uz' ? 'Qabullar' : 'Приёмы',
-      icon: Calendar
+      id: 'service_categories',
+      label: language === 'uz' ? 'Xizmat kategoriyalari' : 'Категории услуг',
+      icon: Tag
     },
     {
-      id: 'records',
-      label: language === 'uz' ? 'Yozuvlar' : 'Записи',
-      icon: FileText
+      id: 'base_services',
+      label: language === 'uz' ? 'Asosiy xizmatlar' : 'Базовые услуги',
+      icon: List
+    },
+    {
+      id: 'requests',
+      label: language === 'uz' ? 'Tizim so\'rovlari' : 'Системные запросы',
+      icon: MessageSquare
     },
     {
       id: 'settings',

@@ -37,10 +37,22 @@ export const ViewEditAppointmentModal: React.FC<ViewEditAppointmentModalProps> =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const appointmentTime = new Date(data.appointment_date + 'T' + data.appointment_time);
+
+    // Get original date/time
+    const originalDateTime = new Date(appointment.appointment_time);
+    const newDateTime = new Date(data.appointment_date + 'T' + data.appointment_time);
+
+    // Check if time has changed and notes are empty
+    if (originalDateTime.getTime() !== newDateTime.getTime() && !data.notes.trim()) {
+      alert(language === 'uz' 
+        ? 'Qabul vaqtini o\'zgartirganda izoh kiritish majburiy'
+        : 'При изменении времени приёма необходимо указать причину');
+      return;
+    }
+
     await onUpdate({
       ...appointment,
-      appointment_time: appointmentTime.toISOString(),
+      appointment_time: newDateTime.toISOString(),
       notes: data.notes
     });
     setIsEditing(false);
@@ -95,6 +107,10 @@ export const ViewEditAppointmentModal: React.FC<ViewEditAppointmentModalProps> =
                   onChange={(e) => setData({ ...data, notes: e.target.value })}
                   rows={3}
                   className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder={language === 'uz' 
+                    ? 'Qabul vaqtini o\'zgartirganda izoh kiritish majburiy'
+                    : 'При изменении времени приёма необходимо указать причину'
+                  }
                 />
               </div>
               <div className="flex gap-4">

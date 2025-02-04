@@ -9,15 +9,16 @@ import { AdminSidebar } from './admin/components/AdminSidebar';
 import { LeadsTable } from './admin/components/LeadsTable';
 import { DentistsTable } from './admin/components/DentistsTable';
 import { StatisticsCards } from './admin/components/StatisticsCards';
-import { AppointmentsTable } from './admin/components/AppointmentsTable';
-import { RecordsTable } from './admin/components/RecordsTable';
 import { AdminSettings } from './admin/components/AdminSettings';
 import { ClinicsTable } from './admin/components/ClinicsTable';
+import { ServiceCategoriesTable } from './admin/components/ServiceCategoriesTable';
+import { BaseServicesTable } from './admin/components/BaseServicesTable';
+import { RequestsTable } from './admin/components/RequestsTable';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { language } = useLanguageStore();
-  const [activeTab, setActiveTab] = useState<'overview' | 'leads' | 'dentists' | 'appointments' | 'records' | 'settings' | 'clinics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'leads' | 'dentists' | 'service_categories' | 'base_services' | 'settings' | 'clinics' | 'requests'>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -115,10 +116,11 @@ export const AdminDashboard: React.FC = () => {
           {activeTab === 'overview' && <StatisticsCards />}
           {activeTab === 'leads' && <LeadsTable />}
           {activeTab === 'dentists' && <DentistsTable />}
-          {activeTab === 'appointments' && <AppointmentsTable />}
-          {activeTab === 'records' && <RecordsTable />}
+          {activeTab === 'service_categories' && <ServiceCategoriesTable />}
+          {activeTab === 'base_services' && <BaseServicesTable />}
           {activeTab === 'settings' && <AdminSettings />}
           {activeTab === 'clinics' && <ClinicsTable />}
+          {activeTab === 'requests' && <RequestsTable />}
         </main>
       </div>
     </div>

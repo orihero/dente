@@ -28,16 +28,33 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   db: {
     schema: 'public'
   },
-  // Add request timeout
-  fetch: (url, options) => {
+  // Add request timeout and retry logic
+  fetch: (url, options = {}) => {
     const timeout = 15000; // 15 seconds timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     return fetch(url, {
       ...options,
-      signal: controller.signal
-    }).finally(() => clearTimeout(timeoutId));
+      signal: controller.signal,
+      // Add retry headers
+      headers: {
+        ...options.headers,
+        'x-retry-after': '1',
+        'x-retry-count': '3'
+      }
+    })
+    .then(response => {
+      clearTimeout(timeoutId);
+      return response;
+    })
+    .catch(error => {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out');
+      }
+      throw error;
+    });
   }
 });
 

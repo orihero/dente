@@ -31,6 +31,7 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
   const [loading, setLoading] = useState(true);
   const [isMilkTeeth, setIsMilkTeeth] = useState(false);
   const [showServices, setShowServices] = useState(false);
+  const [diagramRight, setDiagramRight] = useState(false);
 
   useEffect(() => {
     if (showServices) {
@@ -128,9 +129,7 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
   };
 
   const handleTeethClick = (event: React.MouseEvent<SVGElement>) => {
-    // Call the parent click handler
     onTeethClick(event);
-
   };
 
   return (
@@ -141,6 +140,8 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
           setIsMilkTeeth={setIsMilkTeeth}
           showServices={showServices}
           setShowServices={setShowServices}
+          diagramRight={diagramRight}
+          setDiagramRight={setDiagramRight}
         />
 
         <button
@@ -155,7 +156,7 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
       <div className="lg:grid lg:grid-cols-8 lg:gap-6">
         {/* Services List - Only visible when showServices is true */}
         {showServices && (
-          <div className="hidden lg:block lg:col-span-5 border-r pr-4">
+          <div className={`hidden lg:block ${diagramRight ? 'lg:col-span-5 lg:order-2' : 'lg:col-span-5 lg:order-1'} border-r pr-4`}>
             <ServicesList
               services={services}
               loading={loading}
@@ -167,7 +168,7 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
         )}
 
         {/* Diagrams */}
-        <div className={showServices ? "lg:col-span-3" : "lg:col-span-8"}>
+        <div className={showServices ? `lg:col-span-3 ${diagramRight ? 'lg:order-1' : 'lg:order-2'}` : "lg:col-span-8"}>
           {showServices ? (
             // Show single diagram based on milk teeth switch
             <div className="h-[600px]">
@@ -177,8 +178,8 @@ export const TeethDiagram: React.FC<TeethDiagramProps> = ({
               />
             </div>
           ) : (
-            // Show both diagrams when services are off with 7.5% right offset
-            <div className="grid grid-cols-2 gap-4 ml-[7.5%] mr-[-7.5%]">
+            // Show both diagrams when services are off with 5% right offset and 96% scale
+            <div className="grid grid-cols-2 gap-4 ml-[5%] mr-[-5%] scale-[0.96]">
               <div className="h-[600px]">
                 <ResponsiveTeethSvg 
                   onClick={handleTeethClick}

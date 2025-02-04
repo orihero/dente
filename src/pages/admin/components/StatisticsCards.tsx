@@ -39,27 +39,48 @@ export const StatisticsCards: React.FC = () => {
     try {
       setError(null);
       
-      // First check if user is admin
-      const { data: isAdmin } = await supabase.rpc('is_admin_dentist');
-      if (!isAdmin) {
+      // First check if user is admin or manager
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const { data: dentist } = await supabase
+        .from('dentists')
+        .select('type, clinic_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!dentist) throw new Error('Dentist not found');
+
+      let statsData;
+
+      if (dentist.type === 'admin') {
+        // Get global statistics for admin
+        const { data, error } = await supabase.rpc('get_admin_statistics');
+        if (error) throw error;
+        statsData = data;
+      } else if (dentist.type === 'manager' && dentist.clinic_id) {
+        // Get clinic-specific statistics for manager
+        const { data, error } = await supabase.rpc('get_clinic_statistics', {
+          clinic_ids: [dentist.clinic_id]
+        });
+        if (error) throw error;
+        statsData = data;
+      } else {
         throw new Error(language === 'uz' 
           ? 'Sizda ruxsat yo\'q'
           : 'У вас нет разрешения'
         );
       }
-
-      const { data, error } = await supabase.rpc('get_admin_statistics');
-      if (error) throw error;
       
       // Ensure all values are numbers with default value of 0
       const processedStats: Statistics = {
-        totalDentists: Number(data?.total_dentists) || 0,
-        totalLeads: Number(data?.total_leads) || 0,
-        convertedLeads: Number(data?.converted_leads) || 0,
-        rejectedLeads: Number(data?.rejected_leads) || 0,
-        totalPatients: Number(data?.total_patients) || 0,
-        totalAppointments: Number(data?.total_appointments) || 0,
-        totalRecords: Number(data?.total_records) || 0
+        totalDentists: Number(statsData?.total_dentists) || 0,
+        totalLeads: Number(statsData?.total_leads) || 0,
+        convertedLeads: Number(statsData?.converted_leads) || 0,
+        rejectedLeads: Number(statsData?.rejected_leads) || 0,
+        totalPatients: Number(statsData?.total_patients) || 0,
+        totalAppointments: Number(statsData?.total_appointments) || 0,
+        totalRecords: Number(statsData?.total_records) || 0
       };
       
       setStats(processedStats);
@@ -85,6 +106,35 @@ export const StatisticsCards: React.FC = () => {
     setLoading(true);
     setRetryCount(0);
   };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(7)].map((_, i) => (
+          <div key={i} className="bg-white p-6 rounded-lg shadow animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
+            <div className="h-10 bg-gray-200 rounded w-1/3"></div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 p-4 rounded-lg">
+        <div className="flex flex-col items-center text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={handleRetry}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+          >
+            {language === 'uz' ? 'Qayta urinish' : 'Повторить попытку'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const cards = [
     {
@@ -130,35 +180,6 @@ export const StatisticsCards: React.FC = () => {
       color: 'bg-red-500'
     }
   ];
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(7)].map((_, i) => (
-          <div key={i} className="bg-white p-6 rounded-lg shadow animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
-            <div className="h-10 bg-gray-200 rounded w-1/3"></div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 p-4 rounded-lg">
-        <div className="flex flex-col items-center text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={handleRetry}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-          >
-            {language === 'uz' ? 'Qayta urinish' : 'Повторить попытку'}
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

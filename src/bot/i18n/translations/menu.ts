@@ -6,6 +6,7 @@ export const menuTranslations = {
       myAppointments: "📅 Mening qabullarim",
       myFamily: "👨‍👩‍👧‍👦 Mening oilam",
       myBonuses: "🎁 Mening bonuslarim",
+      myRequests: "🔔 Mening so'rovlarim",
       settings: "⚙️ Sozlamalar"
     },
     settings: {
@@ -38,6 +39,7 @@ export const menuTranslations = {
       myAppointments: "📅 Мои приёмы",
       myFamily: "👨‍👩‍👧‍👦 Моя семья",
       myBonuses: "🎁 Мои бонусы",
+      myRequests: "🔔 Мои запросы",
       settings: "⚙️ Настройки"
     },
     settings: {

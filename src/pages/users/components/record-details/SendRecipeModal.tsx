@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertCircle, Send, Save, BookTemplate as Template } from 'lucide-react';
+import { X, AlertCircle, Send } from 'lucide-react';
 import { useLanguageStore } from '../../../../store/languageStore';
 import { translations } from '../../../../i18n/translations';
 import { supabase } from '../../../../lib/supabase';
+import { RecipeTemplates } from './RecipeTemplates';
+import { SaveTemplateForm } from './SaveTemplateForm';
 
 interface SendRecipeModalProps {
   showModal: boolean;
@@ -73,6 +75,9 @@ export const SendRecipeModal: React.FC<SendRecipeModalProps> = ({
     setError(null);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
       // First update the record with new recipe/suggestions
       const { error: updateError } = await supabase
         .from('patient_records')
@@ -89,6 +94,7 @@ export const SendRecipeModal: React.FC<SendRecipeModalProps> = ({
         const { error: templateError } = await supabase
           .from('recipe_templates')
           .insert({
+            dentist_id: user.id,
             name: templateName,
             recipe: data.recipe,
             suggestions: data.suggestions
@@ -139,26 +145,10 @@ export const SendRecipeModal: React.FC<SendRecipeModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Templates Section */}
-          {templates.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {language === 'uz' ? 'Shablonlar' : 'Шаблоны'}
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {templates.map((template) => (
-                  <button
-                    key={template.id}
-                    type="button"
-                    onClick={() => handleTemplateSelect(template)}
-                    className="flex items-center gap-2 p-2 text-left text-sm border rounded hover:bg-gray-50"
-                  >
-                    <Template className="w-4 h-4 text-gray-500" />
-                    <span className="truncate">{template.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <RecipeTemplates
+            templates={templates}
+            onSelect={handleTemplateSelect}
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -201,15 +191,10 @@ export const SendRecipeModal: React.FC<SendRecipeModalProps> = ({
           </div>
 
           {saveAsTemplate && (
-            <div>
-              <input
-                type="text"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder={language === 'uz' ? 'Shablon nomi' : 'Название шаблона'}
-                className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
+            <SaveTemplateForm
+              name={templateName}
+              onNameChange={setTemplateName}
+            />
           )}
 
           <div className="flex gap-4 pt-4">

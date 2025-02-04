@@ -25,16 +25,11 @@ export const NewClinicModal: React.FC<NewClinicModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>(clinic?.logo_url || '');
   const [data, setData] = useState({
-    name_uz: clinic?.name_uz || '',
-    name_ru: clinic?.name_ru || '',
-    city_uz: clinic?.city_uz || '',
-    city_ru: clinic?.city_ru || '',
-    district_uz: clinic?.district_uz || '',
-    district_ru: clinic?.district_ru || '',
-    address_uz: clinic?.address_uz || '',
-    address_ru: clinic?.address_ru || '',
-    description_uz: clinic?.description_uz || '',
-    description_ru: clinic?.description_ru || '',
+    name: clinic?.name_uz || '',
+    city: clinic?.city_uz || '',
+    district: clinic?.district_uz || '',
+    address: clinic?.address_uz || '',
+    description: clinic?.description_uz || '',
     working_hours: clinic?.working_hours || {
       monday: { open: '09:00', close: '18:00' },
       tuesday: { open: '09:00', close: '18:00' },
@@ -76,16 +71,16 @@ export const NewClinicModal: React.FC<NewClinicModalProps> = ({
       const emails = data.emails.filter(Boolean);
 
       const clinicData = {
-        name_uz: data.name_uz,
-        name_ru: data.name_ru,
-        city_uz: data.city_uz,
-        city_ru: data.city_ru,
-        district_uz: data.district_uz,
-        district_ru: data.district_ru,
-        address_uz: data.address_uz,
-        address_ru: data.address_ru,
-        description_uz: data.description_uz,
-        description_ru: data.description_ru,
+        name_uz: data.name,
+        name_ru: data.name,
+        city_uz: data.city,
+        city_ru: data.city,
+        district_uz: data.district,
+        district_ru: data.district,
+        address_uz: data.address,
+        address_ru: data.address,
+        description_uz: data.description,
+        description_ru: data.description,
         working_hours: data.working_hours,
         phone_numbers,
         emails,
@@ -148,32 +143,17 @@ export const NewClinicModal: React.FC<NewClinicModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {language === 'uz' ? 'Nomi (O\'zbekcha)' : 'Название (Узбекский)'}
-              </label>
-              <input
-                type="text"
-                required
-                value={data.name_uz}
-                onChange={(e) => setData({ ...data, name_uz: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {language === 'uz' ? 'Nomi (Ruscha)' : 'Название (Русский)'}
-              </label>
-              <input
-                type="text"
-                required
-                value={data.name_ru}
-                onChange={(e) => setData({ ...data, name_ru: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {language === 'uz' ? 'Nomi' : 'Название'}
+            </label>
+            <input
+              type="text"
+              required
+              value={data.name}
+              onChange={(e) => setData({ ...data, name: e.target.value })}
+              className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+            />
           </div>
 
           <LogoUpload

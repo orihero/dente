@@ -76,6 +76,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
+      // Get dentist data to check clinic status
+      const { data: dentist, error: dentistError } = await supabase
+        .from('dentists')
+        .select(`
+          *,
+          clinic:clinics(
+            id,
+            enabled
+          )
+        `)
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (dentistError) throw dentistError;
+      if (!dentist) throw new Error('Dentist not found');
+
+      // Check if clinic is disabled (only if dentist belongs to a clinic)
+      if (dentist.clinic && !dentist.clinic.enabled) {
+        // Sign out if clinic is disabled
+        await supabase.auth.signOut();
+        throw new Error(
+          dentist.language === 'uz'
+            ? 'Klinika faol emas. Iltimos, administrator bilan bog\'laning.'
+            : 'Клиника неактивна. Пожалуйста, свяжитесь с администратором.'
+        );
+      }
+
       // Check if user is admin
       console.log('👑 Checking admin status...');
       const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin_dentist');
@@ -139,6 +166,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     try {
       console.log('🚪 Starting sign out process');
+      // First clear any stored session data
+      localStorage.removeItem('sb-' + import.meta.env.VITE_SUPABASE_URL + '-auth-token');
+      
+      // Then sign out from Supabase
       await supabase.auth.signOut();
       console.log('✅ Successfully signed out, clearing state');
       set({ 

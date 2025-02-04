@@ -36,6 +36,9 @@ export const mainMenuKeyboard = {
       ],
       [
         { text: menuTranslations.uz.mainMenu.myBonuses },
+        { text: menuTranslations.uz.mainMenu.myRequests }
+      ],
+      [
         { text: menuTranslations.uz.mainMenu.settings }
       ]
     ],
@@ -53,6 +56,9 @@ export const mainMenuKeyboard = {
       ],
       [
         { text: menuTranslations.ru.mainMenu.myBonuses },
+        { text: menuTranslations.ru.mainMenu.myRequests }
+      ],
+      [
         { text: menuTranslations.ru.mainMenu.settings }
       ]
     ],

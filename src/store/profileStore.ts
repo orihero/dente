@@ -2,13 +2,37 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
 
+interface Clinic {
+  id: string;
+  name_uz: string;
+  name_ru: string;
+  logo_url: string | null;
+}
+
+interface Profile {
+  id: string;
+  full_name: string;
+  phone: string;
+  experience: number;
+  birthdate: string | null;
+  photo_url: string | null;
+  type: 'admin' | 'manager' | 'regular';
+  clinic?: Clinic;
+  social_media?: {
+    platforms: Array<{
+      platform: string;
+      url: string;
+    }>;
+  };
+}
+
 interface ProfileState {
-  profile: any;
+  profile: Profile | null;
   loading: boolean;
   error: string | null;
   initialized: boolean;
   fetchProfile: () => Promise<void>;
-  updateProfile: (data: any) => Promise<void>;
+  updateProfile: (data: Partial<Profile>) => Promise<void>;
 }
 
 export const useProfileStore = create<ProfileState>((set, get) => ({
@@ -33,7 +57,15 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
 
       const { data, error } = await supabase
         .from('dentists')
-        .select('*')
+        .select(`
+          *,
+          clinic:clinics (
+            id,
+            name_uz,
+            name_ru,
+            logo_url
+          )
+        `)
         .eq('id', user.id)
         .single();
 
@@ -81,7 +113,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       const cleanData = {
         full_name: data.full_name.trim(),
         phone: data.phone.trim(),
-        experience: parseInt(data.experience) || 0,
+        experience: parseInt(String(data.experience)) || 0,
         birthdate: data.birthdate || null,
         photo_url: data.photo_url || null,
         social_media: {
@@ -112,7 +144,15 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       // Fetch fresh data after update
       const { data: freshData, error: fetchError } = await supabase
         .from('dentists')
-        .select('*')
+        .select(`
+          *,
+          clinic:clinics (
+            id,
+            name_uz,
+            name_ru,
+            logo_url
+          )
+        `)
         .eq('id', user.id)
         .single();
 
