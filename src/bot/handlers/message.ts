@@ -2,13 +2,15 @@ import { Message } from 'node-telegram-bot-api';
 import { supabase } from '../services/supabase.js';
 import { stateManager } from '../services/state.js';
 import { translations } from '../i18n/translations.js';
-import { handleMenu } from './menu.js';
+import { handleMenu } from './menu/index.js';
 import { escape_markdown_v2 } from '../utils/formatters.js';
+import { getMainMenuKeyboard } from './menu/index.js';
 
 export const handleMessage = async (bot: any, msg: Message) => {
   if (!msg.text || msg.text.startsWith('/')) return;
   
   const chatId = msg.chat.id;
+  const text = msg.text;
   const userState = stateManager.get(chatId);
 
   // If user is in registration flow, handle registration steps
@@ -50,20 +52,6 @@ export const handleMessage = async (bot: any, msg: Message) => {
 
       case 'ADDRESS_REQUEST':
         try {
-          // Get referrer info if this is a referral registration
-          let referrerInfo = null;
-          if (userState.dentistId) {
-            const { data: referrer } = await supabase
-              .from('patients')
-              .select('full_name')
-              .eq('id', userState.dentistId)
-              .single();
-            
-            if (referrer) {
-              referrerInfo = referrer;
-            }
-          }
-
           // Create new patient
           const { data: newPatient, error: createError } = await supabase
             .from('patients')
@@ -75,9 +63,25 @@ export const handleMessage = async (bot: any, msg: Message) => {
               address: msg.text,
               telegram_chat_id: chatId.toString(),
               telegram_registered: true,
-              language: userState.language?.code
+              language: userState.language?.code,
+              referred_by: userState.referredBy
             })
-            .select('*, dentist:dentists(full_name, telegram_bot_chat_id, telegram_bot_registered)')
+            .select(`
+              *,
+              dentist:dentists!inner(
+                id,
+                full_name,
+                telegram_bot_chat_id,
+                telegram_bot_registered,
+                telegram_bot_settings
+              ),
+              referrer:patients!patients_referred_by_fkey(
+                id,
+                full_name,
+                telegram_chat_id,
+                language
+              )
+            `)
             .single();
 
           if (createError) throw createError;
@@ -93,14 +97,19 @@ export const handleMessage = async (bot: any, msg: Message) => {
             userState.language?.code === 'uz'
               ? `✅ Tabriklaymiz! Siz muvaffaqiyatli ro'yxatdan o'tdingiz.\n\nSizning shifokoringiz: ${newPatient.dentist.full_name}`
               : `✅ Поздравляем! Вы успешно зарегистрировались.\n\nВаш врач: ${newPatient.dentist.full_name}`,
-            { parse_mode: 'MarkdownV2' }
+            { 
+              reply_markup: {
+                keyboard: getMainMenuKeyboard(userState.language?.code || 'uz').keyboard,
+                resize_keyboard: true
+              }
+            }
           );
 
           // Send notification to dentist if they have Telegram bot configured
           if (newPatient.dentist.telegram_bot_registered && newPatient.dentist.telegram_bot_chat_id) {
             const escapedPatientName = escape_markdown_v2(newPatient.full_name);
             const escapedPhone = escape_markdown_v2(newPatient.phone);
-            const escapedReferrerName = referrerInfo ? escape_markdown_v2(referrerInfo.full_name) : null;
+            const escapedReferrerName = newPatient.referrer ? escape_markdown_v2(newPatient.referrer.full_name) : null;
 
             // Send in Uzbek
             await bot.sendMessage(
@@ -134,39 +143,37 @@ export const handleMessage = async (bot: any, msg: Message) => {
                   type: 'system',
                   recipient: newPatient.dentist_id,
                   message: userState.language?.code === 'uz'
-                    ? `Yangi bemor: ${newPatient.full_name}${referrerInfo ? ` (${referrerInfo.full_name} tomonidan yo'llangan)` : ''}`
-                    : `Новый пациент: ${newPatient.full_name}${referrerInfo ? ` (направлен пациентом ${referrerInfo.full_name})` : ''}`
+                    ? `Yangi bemor: ${newPatient.full_name}${newPatient.referrer ? ` (${newPatient.referrer.full_name} tomonidan yo'llangan)` : ''}`
+                    : `Новый пациент: ${newPatient.full_name}${newPatient.referrer ? ` (направлен пациентом ${newPatient.referrer.full_name})` : ''}`
                 }
               ]);
           }
 
-          // Send main menu
-          await bot.sendMessage(
-            chatId,
-            userState.language?.code === 'uz'
-              ? '🏥 Asosiy menyu'
-              : '🏥 Главное меню',
-            { 
-              parse_mode: 'MarkdownV2',
-              reply_markup: {
-                keyboard: [
-                  [
-                    { text: userState.language?.code === 'uz' ? '👨‍⚕️ Mening shifokorim' : '👨‍⚕️ Мой врач' },
-                    { text: userState.language?.code === 'uz' ? '📝 Mening yozuvlarim' : '📝 Мои записи' }
-                  ],
-                  [
-                    { text: userState.language?.code === 'uz' ? '📅 Mening qabullarim' : '📅 Мои приёмы' },
-                    { text: userState.language?.code === 'uz' ? '👨‍👩‍👧‍👦 Mening oilam' : '👨‍👩‍👧‍👦 Моя семья' }
-                  ],
-                  [
-                    { text: userState.language?.code === 'uz' ? '🎁 Mening bonuslarim' : '🎁 Мои бонусы' },
-                    { text: userState.language?.code === 'uz' ? '⚙️ Sozlamalar' : '⚙️ Настройки' }
-                  ]
-                ],
-                resize_keyboard: true
-              }
+          // If this was a referral and referral program is enabled, send notifications
+          if (newPatient.referrer && newPatient.dentist.telegram_bot_settings?.referral?.enabled) {
+            const settings = newPatient.dentist.telegram_bot_settings.referral;
+            const discount = settings.percentage;
+            const daysActive = settings.days_active;
+
+            // Send notification to referrer
+            if (newPatient.referrer.telegram_chat_id) {
+              const message = newPatient.referrer.language === 'uz'
+                ? `🎉 *Tabriklaymiz\\!*\n\n` +
+                  `Siz yo'llagan bemor *${escape_markdown_v2(newPatient.full_name)}* muvaffaqiyatli ro'yxatdan o'tdi\\.\n` +
+                  `Keyingi tashrifingizda *${discount}%* chegirmaga ega bo'lasiz\\.\n` +
+                  `Chegirma *${daysActive} kun* davomida amal qiladi\\.`
+                : `🎉 *Поздравляем\\!*\n\n` +
+                  `Приглашённый вами пациент *${escape_markdown_v2(newPatient.full_name)}* успешно зарегистрировался\\.\n` +
+                  `При следующем визите вы получите скидку *${discount}%*\\.\n` +
+                  `Скидка действует в течение *${daysActive} дней*\\.`;
+
+              await bot.sendMessage(
+                newPatient.referrer.telegram_chat_id,
+                message,
+                { parse_mode: 'MarkdownV2' }
+              );
             }
-          );
+          }
         } catch (error: any) {
           console.error('Error creating patient:', error);
           await bot.sendMessage(

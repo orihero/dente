@@ -1,6 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { config } from './config/index.js';
 import { handleStart, handleLanguageSelection, handleContact, handleMessage } from './handlers/index.js';
+import { handleCallbacks } from './handlers/callbacks.js';
 import { setupLeadsSubscription } from './subscriptions/leads.js';
 import { setupAppointmentsSubscription } from './subscriptions/appointments.js';
 import { setupNotificationsSubscription } from './subscriptions/notifications.js';
@@ -15,6 +16,8 @@ bot.onText(/\/start/, (msg) => handleStart(bot, msg));
 bot.on('callback_query', (query) => {
   if (query.data?.startsWith('language_')) {
     handleLanguageSelection(bot, query);
+  } else {
+    handleCallbacks(bot, query);
   }
 });
 

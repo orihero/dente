@@ -6,12 +6,15 @@ interface SMSData {
   text: string;
 }
 
-const SMS_API_URL = 'http://opersms.uz:8083';
+const SMS_API_URL = 'http://www.opersms.uz:8083';
 
 export const sendSMS = async (data: SMSData) => {
   try {
     // Check if credentials are configured
-    if (!config.sms.login || !config.sms.password) {
+    const login = config.sms.login;
+    const password = config.sms.password;
+
+    if (!login || !password) {
       console.error('SMS credentials are not configured');
       return;
     }
@@ -20,18 +23,22 @@ export const sendSMS = async (data: SMSData) => {
     const normalizedPhone = data.phone.replace(/\D/g, '');
     const phone = normalizedPhone.startsWith('998') ? normalizedPhone : `998${normalizedPhone}`;
 
-    // Construct query parameters
-    const params = new URLSearchParams({
-      login: config.sms.login,
-      password: config.sms.password,
-      data: JSON.stringify([{
+    // Prepare request body
+    const requestBody = {
+      login,
+      password,
+      data: [{
         phone,
         text: data.text
-      }])
-    });
+      }]
+    };
 
     // Make the request
-    const response = await axios.get(`${SMS_API_URL}?${params.toString()}`);
+    const response = await axios.post(SMS_API_URL, requestBody, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
 
     // Log success for debugging
     console.log('SMS sent successfully:', {

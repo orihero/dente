@@ -100,8 +100,6 @@ export const Profile: React.FC = () => {
     }
   };
 
-  const isNewProfile = profile && (!profile.full_name || !profile.phone);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -112,13 +110,27 @@ export const Profile: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-600">{error}</div>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <h2 className="text-xl font-bold text-red-600 mb-4">
+            {language === 'uz' ? 'Xatolik yuz berdi' : 'Произошла ошибка'}
+          </h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => fetchProfile()}
+            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700"
+          >
+            {language === 'uz' ? 'Qayta urinish' : 'Повторить попытку'}
+          </button>
+        </div>
       </div>
     );
   }
 
-  if (isNewProfile) {
+  // Check if profile is incomplete
+  const isProfileIncomplete = !profile || !profile.full_name || !profile.phone;
+
+  if (isProfileIncomplete) {
     return <NewProfileForm updateProfile={updateProfile} />;
   }
 

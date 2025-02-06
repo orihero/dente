@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Upload, Plus, Trash2 } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { DatePicker } from '../../../components/DatePicker';
 import { PhoneInput } from '../../../components/PhoneInput';
+import { supabase } from '../../../lib/supabase';
 
 interface ProfileEditModalProps {
   showModal: boolean;
@@ -33,7 +33,6 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     full_name: '',
     phone: '',
     birthdate: '',
-    experience: '',
     photo_url: '',
     social_media: [] as SocialMedia[]
   });
@@ -49,7 +48,6 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
         full_name: profile.full_name || '',
         phone: profile.phone || '',
         birthdate: profile.birthdate || '',
-        experience: profile.experience?.toString() || '0',
         photo_url: profile.photo_url || '',
         social_media: profile.social_media?.platforms || []
       });
@@ -149,7 +147,6 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
           full_name: data.full_name,
           phone: data.phone,
           birthdate: data.birthdate || null,
-          experience: parseInt(data.experience) || 0,
           photo_url: photoUrl,
           social_media: { platforms: data.social_media }
         })
@@ -274,20 +271,6 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
               <DatePicker
                 value={data.birthdate}
                 onChange={(value) => setData({ ...data, birthdate: value })}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t.experience}
-              </label>
-              <input
-                type="number"
-                required
-                min="0"
-                value={data.experience}
-                onChange={(e) => setData({ ...data, experience: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500"
               />
             </div>
           </div>

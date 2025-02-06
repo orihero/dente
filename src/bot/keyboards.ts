@@ -12,14 +12,39 @@ export const languageKeyboard = {
 
 export const contactKeyboard = {
   uz: {
-    keyboard: [[{ text: '📱 Telefon raqamni yuborish', request_contact: true }]],
+    keyboard: [
+      [{ text: '📱 Telefon raqamni yuborish', request_contact: true }]
+    ],
     resize_keyboard: true,
     one_time_keyboard: true
   },
   ru: {
-    keyboard: [[{ text: '📱 Отправить номер телефона', request_contact: true }]],
+    keyboard: [
+      [{ text: '📱 Отправить номер телефона', request_contact: true }]
+    ],
     resize_keyboard: true,
     one_time_keyboard: true
+  }
+};
+
+export const newUserMenuKeyboard = {
+  uz: {
+    keyboard: [
+      [
+        { text: '🏥 Klinikani tanlash' },
+        { text: '⚙️ Sozlamalar' }
+      ]
+    ],
+    resize_keyboard: true
+  },
+  ru: {
+    keyboard: [
+      [
+        { text: '🏥 Выбрать клинику' },
+        { text: '⚙️ Настройки' }
+      ]
+    ],
+    resize_keyboard: true
   }
 };
 
@@ -36,9 +61,6 @@ export const mainMenuKeyboard = {
       ],
       [
         { text: menuTranslations.uz.mainMenu.myBonuses },
-        { text: menuTranslations.uz.mainMenu.myRequests }
-      ],
-      [
         { text: menuTranslations.uz.mainMenu.settings }
       ]
     ],
@@ -56,9 +78,6 @@ export const mainMenuKeyboard = {
       ],
       [
         { text: menuTranslations.ru.mainMenu.myBonuses },
-        { text: menuTranslations.ru.mainMenu.myRequests }
-      ],
-      [
         { text: menuTranslations.ru.mainMenu.settings }
       ]
     ],

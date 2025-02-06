@@ -21,7 +21,14 @@ export interface UserState {
     birthdate?: string;
     address?: string;
   };
+  registrationToken?: string;
+  referredBy?: string;
   dentistId?: string;
+  referralSettings?: {
+    enabled: boolean;
+    percentage: number;
+    days_active: number;
+  };
 }
 
 export interface AppointmentData {
