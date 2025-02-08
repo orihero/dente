@@ -30,23 +30,23 @@ export const contactKeyboard = {
 export const newUserMenuKeyboard = {
   uz: {
     keyboard: [
-      [
-        { text: '🏥 Klinikani tanlash' },
-        { text: '⚙️ Sozlamalar' }
-      ]
+      [{ text: '🏥 Klinika tanlash' }]
     ],
     resize_keyboard: true
   },
   ru: {
     keyboard: [
-      [
-        { text: '🏥 Выбрать клинику' },
-        { text: '⚙️ Настройки' }
-      ]
+      [{ text: '🏥 Выбор клиники' }]
     ],
     resize_keyboard: true
   }
 };
+
+// Export keyboard getter function
+export const getNewUserMenuKeyboard = (language: 'uz' | 'ru') => ({
+  keyboard: newUserMenuKeyboard[language].keyboard,
+  resize_keyboard: true
+});
 
 export const mainMenuKeyboard = {
   uz: {

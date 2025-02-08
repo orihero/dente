@@ -1,6 +1,7 @@
 export const homeTranslations = {
   uz: {
     title: "Asosiy",
+    appointments: "Qabullar",
     appointments: "Qabullar", 
     users: "Bemorlar",
     profile: "Profil",
@@ -46,6 +47,7 @@ export const homeTranslations = {
   },
   ru: {
     title: "Главная",
+    appointments: "Приёмы",
     appointments: "Приёмы",
     users: "Пациенты", 
     profile: "Профиль",

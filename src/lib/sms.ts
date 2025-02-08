@@ -5,7 +5,7 @@ interface SMSData {
   text: string;
 }
 
-const SMS_API_URL = 'http://www.opersms.uz:8083';
+const SMS_API_URL = 'http://opersms.uz:8083';
 
 export const sendSMS = async (data: SMSData) => {
   try {
@@ -22,18 +22,18 @@ export const sendSMS = async (data: SMSData) => {
     const normalizedPhone = data.phone.replace(/\D/g, '');
     const phone = normalizedPhone.startsWith('998') ? normalizedPhone : `998${normalizedPhone}`;
 
-    // Prepare request body
-    const requestBody = {
-      login,
-      password,
-      data: [{
-        phone,
-        text: data.text
-      }]
-    };
+    // Construct data array
+    const smsData = [{
+      phone,
+      text: data.text
+    }];
 
     // Make the request
-    const response = await axios.post(SMS_API_URL, requestBody, {
+    const response = await axios.post(SMS_API_URL, {
+      login,
+      password,
+      data: JSON.stringify(smsData)
+    }, {
       headers: {
         'Content-Type': 'application/json'
       }

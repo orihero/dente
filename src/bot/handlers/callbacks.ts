@@ -2,14 +2,16 @@ import { CallbackQuery } from 'node-telegram-bot-api';
 import { supabase } from '../services/supabase.js';
 import { handleLanguageSelection } from './language.js';
 import { handleClinicSelection } from './menu/clinics.js';
-import { handleDentistSelection } from './menu/dentists.js'; 
-import { getMainMenuKeyboard, getNewUserMenuKeyboard } from './menu/index.js';
+import { handleDentistSelection } from './menu/dentists.js';
+import { handleAppointmentAction, handleTimeSelection } from './menu/appointments.js';
+import { getMainMenuKeyboard } from './menu/index.js';
 
 export const handleCallbacks = async (bot: any, query: CallbackQuery) => {
   if (!query.message || !query.data) return;
 
   const chatId = query.message.chat.id;
-  const [action, id] = query.data.split('_');
+  const [action, ...params] = query.data.split('_');
+  const id = params.join('_'); // Rejoin in case id contains underscores
 
   // Get patient's language
   const { data: patient, error: patientError } = await supabase
@@ -58,6 +60,16 @@ export const handleCallbacks = async (bot: any, query: CallbackQuery) => {
             : `✅ Выбран врач ${dentist.full_name}`,
           { reply_markup: getMainMenuKeyboard(language) }
         );
+        break;
+
+      case 'confirm':
+      case 'cancel':
+      case 'reschedule':
+        await handleAppointmentAction(bot, query, language);
+        break;
+
+      case 'time':
+        await handleTimeSelection(bot, query, language);
         break;
     }
   } catch (error) {

@@ -85,24 +85,24 @@ export const Users: React.FC = () => {
         </div>
 
         <UserList users={filteredUsers} />
+
+        <button
+          onClick={() => setShowModal(true)}
+          className="fixed right-6 bottom-20 bg-indigo-600 text-white rounded-full p-4 shadow-lg hover:bg-indigo-700 transition-colors"
+          aria-label={t.addUser}
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+
+        <NewUserModal
+          showModal={showModal}
+          onClose={() => setShowModal(false)}
+          onSubmit={handleCreateUser}
+          loading={loading}
+        />
+
+        <BottomNavigation />
       </div>
-
-      <BottomNavigation />
-
-      <button
-        onClick={() => setShowModal(true)}
-        className="fixed right-6 bottom-20 bg-indigo-600 text-white rounded-full p-4 shadow-lg hover:bg-indigo-700 transition-colors"
-        aria-label={t.addUser}
-      >
-        <Plus className="w-6 h-6" />
-      </button>
-
-      <NewUserModal
-        showModal={showModal}
-        onClose={() => setShowModal(false)}
-        onSubmit={handleCreateUser}
-        loading={loading}
-      />
     </div>
   );
 };

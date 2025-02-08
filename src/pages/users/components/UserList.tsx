@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Calendar, Plus, Send } from 'lucide-react';
+import { Phone, Calendar, Plus, Send, MapPin, Copy, CreditCard, CalendarPlus } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
-import { supabase } from '../../../lib/supabase';
 import { PaymentModal } from './PaymentModal';
+import { supabase } from '../../../lib/supabase';
+import { formatDateTime } from '../../../utils/dateUtils';
 
 interface User {
   id: string;
   full_name: string;
   phone: string;
   birthdate: string;
+  address: string;
+  created_at: string;
   balance?: number;
   telegram_registered?: boolean;
 }
@@ -28,6 +31,7 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [generatingLink, setGeneratingLink] = useState<Record<string, boolean>>({});
+  const [linkCopied, setLinkCopied] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchBalances();
@@ -70,7 +74,7 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
     }
   };
 
-  const handleAddPayment = async (data: any) => {
+  const handleAddPayment = async (paymentData: any) => {
     if (!selectedUser) return;
     
     setLoading(true);
@@ -83,10 +87,10 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
         .insert({
           patient_id: selectedUser.id,
           dentist_id: user.id,
-          record_id: data.record_id,
-          amount: parseInt(data.amount.replace(/\D/g, '')),
-          payment_type: data.payment_type,
-          notes: data.notes
+          record_id: paymentData.record_id,
+          amount: parseInt(paymentData.amount.replace(/\D/g, '')),
+          payment_type: paymentData.payment_type,
+          notes: paymentData.notes
         });
 
       if (error) throw error;
@@ -103,16 +107,30 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
   const handleTelegramInvite = async (user: User) => {
     setGeneratingLink(prev => ({ ...prev, [user.id]: true }));
     try {
-      const { data, error } = await supabase
-        .rpc('generate_telegram_registration_token', {
-          patient_id: user.id
-        });
+      // First check if user already has a registration token
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('telegram_registration_token')
+        .eq('id', user.id)
+        .single();
 
-      if (error) throw error;
+      if (patientError) throw patientError;
 
-      if (!data) throw new Error('Failed to generate token');
+      let token = patient.telegram_registration_token;
 
-      const inviteLink = `https://t.me/denteuzbot?start=${data}`;
+      // If no token exists, generate a new one
+      if (!token) {
+        const { data, error } = await supabase
+          .rpc('generate_telegram_registration_token', {
+            patient_id: user.id
+          });
+
+        if (error) throw error;
+        if (!data) throw new Error('Failed to generate token');
+        token = data;
+      }
+
+      const inviteLink = `https://t.me/denteuzbot?start=${token}`;
       await navigator.clipboard.writeText(inviteLink);
       alert(language === 'uz' ? 'Havola nusxalandi!' : 'Ссылка скопирована!');
     } catch (error: any) {
@@ -123,6 +141,21 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
     } finally {
       setGeneratingLink(prev => ({ ...prev, [user.id]: false }));
     }
+  };
+
+  const handleCreateAppointment = (user: User) => {
+    navigate('/dashboard', { 
+      state: { 
+        showAppointmentModal: true,
+        patient: {
+          id: user.id,
+          full_name: user.full_name,
+          phone: user.phone,
+          birthdate: user.birthdate,
+          address: user.address
+        }
+      }
+    });
   };
 
   const formatPhoneNumber = (phone: string) => {
@@ -150,73 +183,118 @@ export const UserList: React.FC<UserListProps> = ({ users }) => {
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {users.map((user) => (
           <div
-            key={user.id}
-            className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-indigo-200 transition-colors cursor-pointer"
-            onClick={() => navigate(`/users/${user.id}`)}
+            key={user.id} 
+            onClick={() => navigate(`/users/${user.id}`)} 
+            className="bg-white rounded-lg shadow-sm border border-gray-100 hover:border-indigo-200 transition-colors cursor-pointer"
           >
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex-1">
-                <h3 className="font-medium text-gray-900">
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-900">#{user.id.split('-')[0]}</span>
+                {user.telegram_registered && (
+                  <span className="px-2 py-0.5 text-xs font-medium text-green-700 bg-green-100 rounded-full">
+                    {language === 'uz' ? 'Telegram' : 'Телеграм'}
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-gray-500">
+                {formatDateTime(user.created_at)}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-4">
+              {user.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user.full_name}
+                  className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl font-medium text-indigo-600">
+                    {user.full_name.charAt(0)}
+                  </span>
+                </div>
+              )}
+              
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-gray-900 truncate">
                   {user.full_name}
                 </h3>
-                <div className="space-y-2 mt-2">
-                  <div className="flex items-center text-gray-600">
-                    <Phone className="w-4 h-4 mr-2" />
-                    <span className="text-sm">{formatPhoneNumber(user.phone)}</span>
+                <div className="mt-1 space-y-1">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                    <span>{formatPhoneNumber(user.phone)}</span>
                   </div>
-                  <div className="flex items-center text-gray-600">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    <span className="text-sm">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span>
                       {new Date(user.birthdate).toLocaleDateString(
                         language === 'uz' ? 'uz-UZ' : 'ru-RU'
                       )}
                     </span>
                   </div>
+                  {user.address && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <span>{user.address}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent navigation
-                    setSelectedUser(user);
-                    setShowPaymentModal(true);
-                  }}
-                  className="flex items-center gap-1 text-indigo-600 hover:text-indigo-500 px-2 py-1 rounded-md hover:bg-indigo-50"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="text-sm">{t.addPayment}</span>
-                </button>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent navigation
-                    handleTelegramInvite(user);
-                  }}
-                  disabled={generatingLink[user.id] || user.telegram_registered}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-md ${
-                    user.telegram_registered
-                      ? 'text-green-600 hover:bg-green-50'
-                      : 'text-blue-600 hover:bg-blue-50'
-                  }`}
-                >
-                  <Send className="w-4 h-4" />
-                  <span className="text-sm">
-                    {user.telegram_registered
-                      ? (language === 'uz' ? 'Ulangan' : 'Подключен')
-                      : (language === 'uz' ? 'Telegram' : 'Телеграм')}
-                  </span>
-                </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t">
+            <div className="flex items-center justify-between p-4 border-t">
               <span className="text-sm text-gray-600">{t.balance}:</span>
               <span className={`font-medium ${
                 (balances[user.id] || 0) >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
                 {(balances[user.id] || 0).toLocaleString()} UZS
               </span>
+            </div>
+
+            <div className="flex items-center gap-2 p-4 border-t">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCreateAppointment(user);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 rounded text-sm bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                <span>{language === 'uz' ? 'Qabul' : 'Приём'}</span>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent navigation
+                  setSelectedUser(user);
+                  setShowPaymentModal(true);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 rounded text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>{language === 'uz' ? 'To\'lov' : 'Оплата'}</span>
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent navigation
+                  handleTelegramInvite(user);
+                }}
+                disabled={generatingLink[user.id] || user.telegram_registered}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm ml-auto ${
+                  user.telegram_registered
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                }`}
+              >
+                <Send className="w-4 h-4" />
+                <span>
+                  {user.telegram_registered
+                    ? (language === 'uz' ? 'Bot' : 'Бот')
+                    : 'Telegram'}
+                </span>
+              </button>
             </div>
           </div>
         ))}

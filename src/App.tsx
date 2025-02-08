@@ -4,7 +4,7 @@ import { useAuthStore } from './store/authStore';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
-import Home from './pages/home';
+import Home from './pages/Home';
 import { Users } from './pages/Users';
 import { UserDetails } from './pages/UserDetails';
 import { Profile } from './pages/Profile';

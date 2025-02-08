@@ -2,8 +2,10 @@ import { Message } from 'node-telegram-bot-api';
 import { supabase } from '../services/supabase.js';
 import { stateManager } from '../services/state.js';
 import { translations } from '../i18n/translations.js';
-import { getMainMenuKeyboard, getNewUserMenuKeyboard } from './menu/index.js';
+import { getMainMenuKeyboard } from './menu/index.js';
+import { getNewUserMenuKeyboard } from '../keyboards.js';
 import { welcomeTranslations } from '../i18n/translations/welcome.js';
+import axios from 'axios';
 
 export const handleContact = async (bot: any, msg: Message) => {
   if (!msg.contact) return;
@@ -22,6 +24,44 @@ export const handleContact = async (bot: any, msg: Message) => {
   console.log('👤 Current user state:', userState);
   const t = translations[userState.language.code].registration;
 
+  // Function to get and store user's avatar
+  const getUserAvatar = async (userId: number) => {
+    try {
+      // Get user profile photos
+      const photos = await bot.getUserProfilePhotos(userId, 0, 1);
+      if (photos.total_count > 0) {
+        // Get file path of the first photo
+        const file = await bot.getFile(photos.photos[0][0].file_id);
+        const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+        
+        // Download photo
+        const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data, 'binary');
+        
+        // Upload to Supabase storage
+        const fileName = `${userId}.jpg`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('patient-avatars')
+          .upload(fileName, buffer, {
+            contentType: 'image/jpeg',
+            upsert: true
+          });
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('patient-avatars')
+          .getPublicUrl(fileName);
+
+        return publicUrl;
+      }
+    } catch (error) {
+      console.error('Error getting user avatar:', error);
+    }
+    return null;
+  };
+
   try {
     // If we have a registration token, update existing patient/dentist
     if (userState.registrationToken) {
@@ -35,13 +75,17 @@ export const handleContact = async (bot: any, msg: Message) => {
 
       if (!dentistError && dentist) {
         console.log('✅ Found dentist:', dentist.id);
+        // Get dentist's language preference
+        const dentistLanguage = dentist.language || 'uz';
+
         // Update dentist with telegram chat ID and mark as registered
         const { error: updateError } = await supabase
           .from('dentists')
           .update({
             telegram_bot_chat_id: chatId.toString(),
             telegram_bot_registered: true,
-            telegram_registration_token: null
+            telegram_registration_token: null,
+            language: dentistLanguage
           })
           .eq('id', dentist.id);
 
@@ -50,7 +94,7 @@ export const handleContact = async (bot: any, msg: Message) => {
         // Send welcome message
         await bot.sendMessage(
           chatId,
-          userState.language.code === 'uz' 
+          dentistLanguage === 'uz' 
             ? `Xush kelibsiz, ${dentist.full_name}! Siz muvaffaqiyatli ro'yxatdan o'tdingiz.`
             : `Добро пожаловать, ${dentist.full_name}! Вы успешно зарегистрировались.`,
           { reply_markup: getMainMenuKeyboard(userState.language.code) }
@@ -68,6 +112,15 @@ export const handleContact = async (bot: any, msg: Message) => {
 
       if (!patientError && patient) {
         console.log('✅ Found patient:', patient.id);
+        // Get dentist's language preference
+        const { data: dentist } = await supabase
+          .from('dentists')
+          .select('language')
+          .eq('id', patient.dentist_id)
+          .single();
+        
+        const dentistLanguage = dentist?.language || 'uz';
+
         // Update patient with telegram chat ID and mark as registered
         const { error: updateError } = await supabase
           .from('patients')
@@ -75,7 +128,7 @@ export const handleContact = async (bot: any, msg: Message) => {
             telegram_chat_id: chatId.toString(),
             telegram_registered: true,
             telegram_registration_token: null,
-            language: userState.language.code
+            language: dentistLanguage
           })
           .eq('id', patient.id);
 
@@ -84,7 +137,7 @@ export const handleContact = async (bot: any, msg: Message) => {
         // Send welcome message with main menu
         await bot.sendMessage(
           chatId,
-          userState.language.code === 'uz'
+          dentistLanguage === 'uz'
             ? `Xush kelibsiz, ${patient.full_name}!`
             : `Добро пожаловать, ${patient.full_name}!`,
           { reply_markup: getMainMenuKeyboard(userState.language.code) }
@@ -113,11 +166,11 @@ export const handleContact = async (bot: any, msg: Message) => {
       // Update patient with telegram chat ID
       const { error: updateError } = await supabase
         .from('patients')
-        .update({
+        .update(Object.assign({
           telegram_chat_id: chatId.toString(),
           telegram_registered: true,
           language: userState.language.code
-        })
+        }, msg.from?.id ? { avatar_url: await getUserAvatar(msg.from.id) } : {}))
         .eq('id', patient.id);
 
       if (updateError) throw updateError;

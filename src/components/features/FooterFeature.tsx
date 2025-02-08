@@ -3,12 +3,16 @@ import { Mail, Phone, MapPin, Facebook, Instagram, Send, AlertCircle } from 'luc
 import { useLanguageStore } from '../../store/languageStore';
 import { translations } from '../../i18n/translations';
 import { PhoneInput } from '../PhoneInput';
+import { TermsOfUseModal } from '../landing/TermsOfUseModal';
+import { PrivacyPolicyModal } from '../landing/PrivacyPolicyModal';
 import { supabase } from '../../lib/supabase';
 
 export const FooterFeature: React.FC = () => {
   const { language } = useLanguageStore();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfUse, setShowTermsOfUse] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState({
     full_name: '',
@@ -178,16 +182,16 @@ export const FooterFeature: React.FC = () => {
               <li className="flex items-center">
                 <Phone className="w-5 h-5 mr-3 text-indigo-400" />
                 <a
-                  href="tel:+998901234567"
+                  href="tel:+998950620500"
                   className="text-gray-400 hover:text-white transition-colors"
                 >
-                  +998 90 123 45 67
+                  +998 95 062 05 00
                 </a>
               </li>
               <li className="flex items-start">
                 <MapPin className="w-5 h-5 mr-3 text-indigo-400 mt-1" />
                 <span className="text-gray-400">
-                  Tashkent, Uzbekistan
+                  Samarqand, Mirzo Ulug'bek ko'chasi 140, O'zbekiston
                 </span>
               </li>
             </ul>
@@ -254,14 +258,16 @@ export const FooterFeature: React.FC = () => {
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <a
-                href="#"
+                onClick={() => setShowPrivacyPolicy(true)}
                 className="text-gray-400 hover:text-white text-sm transition-colors"
+                role="button"
               >
                 {currentTranslation.legal.privacy}
               </a>
               <a
-                href="#"
+                onClick={() => setShowTermsOfUse(true)}
                 className="text-gray-400 hover:text-white text-sm transition-colors"
+                role="button"
               >
                 {currentTranslation.legal.terms}
               </a>
@@ -269,6 +275,14 @@ export const FooterFeature: React.FC = () => {
           </div>
         </div>
       </div>
+      <PrivacyPolicyModal
+        showModal={showPrivacyPolicy}
+        onClose={() => setShowPrivacyPolicy(false)}
+      />
+      <TermsOfUseModal
+        showModal={showTermsOfUse}
+        onClose={() => setShowTermsOfUse(false)}
+      />
     </footer>
   );
 };

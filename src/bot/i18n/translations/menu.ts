@@ -1,6 +1,7 @@
 export const menuTranslations = {
   uz: {
     mainMenu: {
+      selectClinic: "🏥 Klinika tanlash",
       myDoctor: "👨‍⚕️ Mening shifokorim",
       myRecords: "📝 Mening yozuvlarim",
       myAppointments: "📅 Mening qabullarim",
@@ -34,6 +35,7 @@ export const menuTranslations = {
   },
   ru: {
     mainMenu: {
+      selectClinic: "🏥 Выбор клиники",
       myDoctor: "👨‍⚕️ Мой врач",
       myRecords: "📝 Мои записи",
       myAppointments: "📅 Мои приёмы",

@@ -1,6 +1,7 @@
 import { supabase } from '../services/supabase.js';
 import { menuTranslations } from '../i18n/translations/menu.js';
 import { escape_markdown_v2 } from '../utils/formatters.js';
+import { sendSMS } from '../services/sms.js';
 
 export const handleRecords = async (bot: any, chatId: number, patient: any) => {
   try {
@@ -99,5 +100,61 @@ export const handleRecords = async (bot: any, chatId: number, patient: any) => {
         ? 'Xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko\'ring.'
         : 'Произошла ошибка. Пожалуйста, попробуйте позже.'
     );
+  }
+};
+
+// Function to send record notification
+export const sendRecordNotification = async (record: any, patient: any, dentist: any) => {
+  try {
+    // Generate registration token for Telegram bot
+    const { data: token, error: tokenError } = await supabase
+      .rpc('generate_telegram_registration_token', {
+        patient_id: patient.id
+      });
+
+    if (tokenError) throw tokenError;
+
+    const botLink = `https://t.me/denteuzbot?start=${token}`;
+
+    // Create messages based on patient's language
+    const messages = {
+      uz: {
+        telegram: `🦷 *Yangi tibbiy yozuv*\n\n` +
+                 `Hurmatli *${escape_markdown_v2(patient.full_name)}*,\n` +
+                 `*${escape_markdown_v2(dentist.full_name)}* shifokor tomonidan yangi tibbiy yozuv yaratildi\\.\n\n` +
+                 `*Tashxis:*\n${escape_markdown_v2(record.diagnosis)}`,
+        sms: `Hurmatli ${patient.full_name}, ${dentist.full_name} shifokor tomonidan yangi tibbiy yozuv yaratildi. ` +
+             `Retsept va tavsiyalarni ko'rish uchun Telegram botimizga ulaning: ${botLink}`
+      },
+      ru: {
+        telegram: `🦷 *Новая медицинская запись*\n\n` +
+                 `Уважаемый\\(ая\\) *${escape_markdown_v2(patient.full_name)}*,\n` +
+                 `Врач *${escape_markdown_v2(dentist.full_name)}* создал\\(а\\) новую медицинскую запись\\.\n\n` +
+                 `*Диагноз:*\n${escape_markdown_v2(record.diagnosis)}`,
+        sms: `Уважаемый(ая) ${patient.full_name}, врач ${dentist.full_name} создал(а) новую медицинскую запись. ` +
+             `Подключитесь к нашему Telegram боту, чтобы увидеть рецепт и рекомендации: ${botLink}`
+      }
+    };
+
+    // Send notification based on patient's preferred method
+    if (patient.telegram_registered && patient.telegram_chat_id) {
+      // Send via Telegram
+      await supabase
+        .from('notifications')
+        .insert({
+          type: 'telegram',
+          status: 'pending',
+          recipient: patient.telegram_chat_id,
+          message: messages[patient.language || 'uz'].telegram
+        });
+    } else {
+      // Send via SMS
+      await sendSMS({
+        phone: patient.phone,
+        text: messages[patient.language || 'uz'].sms
+      });
+    }
+  } catch (error) {
+    console.error('Error sending record notification:', error);
   }
 };

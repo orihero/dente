@@ -89,7 +89,11 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   };
 
   const handleServiceSelect = (services: any[]) => {
-    setData({ ...data, services });
+    setData(prev => ({
+      ...prev,
+      services
+    }));
+    setShowServiceModal(false);
   };
 
   return (
@@ -280,7 +284,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         showModal={showServiceModal}
         onClose={() => setShowServiceModal(false)}
         onApply={handleServiceSelect}
-        selectedServices={data.services || []}
+        selectedServices={data.services}
       />
     </form>
   );

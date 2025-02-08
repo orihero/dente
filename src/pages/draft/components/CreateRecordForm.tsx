@@ -9,6 +9,7 @@ import { DatePicker } from '../../../components/DatePicker';
 import { CurrencyInput } from '../../../components/CurrencyInput';
 import { sendSMS } from '../../../lib/sms';
 import { smsTemplates } from '../../../utils/smsTemplates';
+import { escape_markdown_v2 } from '../../../utils/formatters';
 
 interface ToothService {
   toothId: string;
@@ -153,19 +154,19 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      let patientId: string;
-      let isNewPatient = false;
-
-      // Check for existing patient
+      // Get patient and dentist data for notification
       const { data: existingPatient, error: patientError } = await supabase
         .from('patients')
-        .select('id, telegram_registered, full_name')
+        .select('id, telegram_registered, full_name, language')
         .eq('phone', data.phone)
         .maybeSingle();
 
       if (patientError && patientError.code !== 'PGRST116') {
         throw patientError;
       }
+
+      let patientId: string;
+      let isNewPatient = false;
 
       if (existingPatient) {
         patientId = existingPatient.id;
@@ -254,19 +255,40 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
       // Send SMS if patient is not registered in Telegram
       if (!existingPatient?.telegram_registered) {
         try {
-          // Generate registration token
-          const { data: token, error: tokenError } = await supabase
-            .rpc('generate_telegram_registration_token', {
-              patient_id: patientId
-            });
+          // Get patient data with token
+          const { data: patient, error: patientError } = await supabase
+            .from('patients')
+            .select('*')
+            .eq('id', patientId)
+            .single();
 
-          if (tokenError) throw tokenError;
+          if (patientError) throw patientError;
+
+          // Generate registration token if not exists
+          if (!patient.telegram_registration_token) {
+            const { data: token, error: tokenError } = await supabase
+              .rpc('generate_telegram_registration_token', {
+                patient_id: patientId
+              });
+
+            if (tokenError) throw tokenError;
+
+            // Get updated patient data with the new token
+            const { data: updatedPatient, error: updateError } = await supabase
+              .from('patients')
+              .select('telegram_registration_token')
+              .eq('id', patientId)
+              .single();
+
+            if (updateError) throw updateError;
+            patient.telegram_registration_token = updatedPatient.telegram_registration_token;
+          }
 
           // Create SMS text
-          const template = smsTemplates.recordCreated[language];
+          const template = smsTemplates.recordCreated[existingPatient?.language || language];
           const smsText = template
             .replace('{{name}}', data.full_name)
-            .replace('{{link}}', `https://t.me/denteuzbot?start=${token}`);
+            .replace('{{link}}', `https://t.me/denteuzbot?start=${patient.telegram_registration_token}`);
 
           // Send SMS
           await sendSMS({
@@ -278,6 +300,8 @@ export const CreateRecordForm: React.FC<CreateRecordFormProps> = ({
           // Don't throw error here to allow record creation to complete
         }
       }
+
+
 
       // Clear form and services
       onClearAll();

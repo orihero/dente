@@ -81,7 +81,7 @@ export const ApplyServiceModal: React.FC<ApplyServiceModalProps> = ({
   };
 
   const handleToggleService = (service: any) => {
-    const exists = selected.find(s => s.id === service.id);
+    const exists = selectedServices?.some(s => s.id === service.id) || false;
     if (exists) {
       setSelected(selected.filter(s => s.id !== service.id));
     } else {
@@ -142,7 +142,7 @@ export const ApplyServiceModal: React.FC<ApplyServiceModalProps> = ({
                         key={service.id}
                         onClick={() => handleToggleService(service)}
                         className={`w-full flex items-start justify-between p-3 rounded-lg transition-colors ${
-                          isSelected ? 'ring-2 ring-indigo-500' : ''
+                          selectedServices?.some(s => s.id === service.id) ? 'ring-2 ring-indigo-500' : ''
                         }`}
                         style={{ backgroundColor }}
                       >

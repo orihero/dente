@@ -33,7 +33,7 @@ export const setupAppointmentsSubscription = (bot: any) => {
           // Get patient details
           const { data: patient, error: patientError } = await supabase
             .from('patients')
-            .select('*')
+            .select('*, telegram_registration_token')
             .eq('id', appointment.patient_id)
             .single();
 
@@ -146,23 +146,15 @@ export const setupAppointmentsSubscription = (bot: any) => {
 // Helper function to send SMS notification
 async function sendSMSNotification(patient: any, dentist: any, variables: any) {
   try {
-    // Generate registration token for Telegram bot
-    const { data: token, error: tokenError } = await supabase
-      .rpc('generate_telegram_registration_token', {
-        patient_id: patient.id
-      });
-
-    if (tokenError) throw tokenError;
-
     // Get SMS template
     const template = dentist.message_templates?.appointment?.sms || {
       uz: defaultTemplates.appointments.newAppointment.uz({
         ...variables,
-        botLink: `https://t.me/denteuzbot?start=${token}`
+        botLink: `https://t.me/denteuzbot?start=${patient.telegram_registration_token}`
       }).sms,
       ru: defaultTemplates.appointments.newAppointment.ru({
         ...variables,
-        botLink: `https://t.me/denteuzbot?start=${token}`
+        botLink: `https://t.me/denteuzbot?start=${patient.telegram_registration_token}`
       }).sms
     };
 

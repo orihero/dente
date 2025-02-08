@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Bell, Languages, LogOut, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, ChevronDown, Languages, LogOut, MessageSquare, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguageStore } from '../store/languageStore';
 import { translations } from '../i18n/translations';
@@ -21,6 +21,8 @@ export const Header: React.FC<HeaderProps> = ({
   const { profile } = useProfileStore();
   const t = translations[language].home;
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   const handleSignOut = async () => {
     try {
@@ -82,19 +84,55 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
-          <button
-            onClick={() => setLanguage(language === 'uz' ? 'ru' : 'uz')}
-            className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100"
-          >
-            <Languages className="w-5 h-5" />
-            <span className="uppercase">{language}</span>
-          </button>
-          <button
-            onClick={handleSignOut}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <LogOut className="w-6 h-6" />
-          </button>
+          <div className="relative" ref={accountMenuRef}>
+            <button
+              onClick={() => setShowAccountMenu(!showAccountMenu)}
+              className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100"
+            >
+              {profile?.photo_url ? (
+                <img
+                  src={profile.photo_url}
+                  alt={profile.full_name}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <User className="w-5 h-5 text-indigo-600" />
+                </div>
+              )}
+              <span className="text-sm font-medium text-gray-700">{profile?.full_name}</span>
+              <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                showAccountMenu ? 'transform rotate-180' : ''
+              }`} />
+            </button>
+
+            {showAccountMenu && (
+              <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg py-1 z-20">
+                <div className="px-4 py-2 border-b">
+                  <p className="text-sm font-medium text-gray-900">{profile?.full_name}</p>
+                  <p className="text-sm text-gray-500">{profile?.email}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setLanguage(language === 'uz' ? 'ru' : 'uz');
+                    setShowAccountMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Languages className="w-4 h-4" />
+                  <span>{language === 'uz' ? 'Tilni o\'zgartirish' : 'Изменить язык'}</span>
+                  <span className="ml-auto uppercase text-xs font-medium text-gray-500">{language}</span>
+                </button>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>{language === 'uz' ? 'Chiqish' : 'Выйти'}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

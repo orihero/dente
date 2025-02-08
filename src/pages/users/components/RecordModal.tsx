@@ -3,6 +3,7 @@ import { X, Plus, AlertCircle, Upload, FileText } from 'lucide-react';
 import { useLanguageStore } from '../../../store/languageStore';
 import { translations } from '../../../i18n/translations';
 import { ApplyServiceModal } from './ApplyServiceModal';
+import { sendSMS } from '../../../lib/sms';
 import { supabase } from '../../../lib/supabase';
 
 interface RecordModalProps {
@@ -93,6 +94,63 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         files: [],
         uploadedFiles: []
       });
+
+      // Get patient and dentist data for notification
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', patientId)
+        .single();
+
+      if (patientError) throw patientError;
+
+      const { data: dentist, error: dentistError } = await supabase
+        .from('dentists')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (dentistError) throw dentistError;
+
+      // Generate registration token for Telegram bot
+      const { data: token, error: tokenError } = await supabase
+        .rpc('generate_telegram_registration_token', {
+          patient_id: patientId
+        });
+
+      if (tokenError) throw tokenError;
+
+      // Create notification based on patient's preferred method
+      if (patient.telegram_registered && patient.telegram_chat_id) {
+        // Send via Telegram
+        await supabase
+          .from('notifications')
+          .insert({
+            type: 'telegram',
+            status: 'pending',
+            recipient: patient.telegram_chat_id,
+            message: patient.language === 'uz'
+              ? `🦷 *Yangi tibbiy yozuv*\n\n` +
+                `Hurmatli *${escape_markdown_v2(patient.full_name)}*,\n` +
+                `*${escape_markdown_v2(dentist.full_name)}* shifokor tomonidan yangi tibbiy yozuv yaratildi\\.\n\n` +
+                `*Tashxis:*\n${escape_markdown_v2(data.diagnosis)}`
+              : `🦷 *Новая медицинская запись*\n\n` +
+                `Уважаемый\\(ая\\) *${escape_markdown_v2(patient.full_name)}*,\n` +
+                `Врач *${escape_markdown_v2(dentist.full_name)}* создал\\(а\\) новую медицинскую запись\\.\n\n` +
+                `*Диагноз:*\n${escape_markdown_v2(data.diagnosis)}`
+          });
+      } else {
+        // Send via SMS with bot invitation link
+        const botLink = `https://t.me/denteuzbot?start=${token}`;
+        await sendSMS({
+          phone: patient.phone,
+          text: patient.language === 'uz'
+            ? `Hurmatli ${patient.full_name}, ${dentist.full_name} shifokor tomonidan yangi tibbiy yozuv yaratildi. ` +
+              `Retsept va tavsiyalarni ko'rish uchun Telegram botimizga ulaning: ${botLink}`
+            : `Уважаемый(ая) ${patient.full_name}, врач ${dentist.full_name} создал(а) новую медицинскую запись. ` +
+              `Подключитесь к нашему Telegram боту, чтобы увидеть рецепт и рекомендации: ${botLink}`
+        });
+      }
     } catch (error: any) {
       console.error('Error creating record:', error);
       setError(error.message || 'Failed to create record');

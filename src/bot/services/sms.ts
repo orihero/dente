@@ -27,10 +27,10 @@ export const sendSMS = async (data: SMSData) => {
     const requestBody = {
       login,
       password,
-      data: [{
+      data: JSON.stringify([{
         phone,
         text: data.text
-      }]
+      }])
     };
 
     // Make the request

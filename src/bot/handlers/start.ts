@@ -2,13 +2,52 @@ import { Message } from 'node-telegram-bot-api';
 import { supabase } from '../services/supabase.js';
 import { stateManager } from '../services/state.js';
 import { languageKeyboard } from '../keyboards.js';
-import { translations } from '../i18n/translations.js';
+import { translations, welcomeTranslations } from '../i18n/translations.js';
 import { getMainMenuKeyboard } from './menu/index.js';
+import axios from 'axios';
 
 export const handleStart = async (bot: any, msg: Message) => {
   const chatId = msg.chat.id;
   console.log('🚀 Start handler called for chat ID:', chatId);
   
+  // Function to get and store user's avatar
+  const getUserAvatar = async (userId: number) => {
+    try {
+      // Get user profile photos
+      const photos = await bot.getUserProfilePhotos(userId, 0, 1);
+      if (photos.total_count > 0) {
+        // Get file path of the first photo
+        const file = await bot.getFile(photos.photos[0][0].file_id);
+        const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+        
+        // Download photo
+        const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data, 'binary');
+        
+        // Upload to Supabase storage
+        const fileName = `${userId}.jpg`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('patient-avatars')
+          .upload(fileName, buffer, {
+            contentType: 'image/jpeg',
+            upsert: true
+          });
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('patient-avatars')
+          .getPublicUrl(fileName);
+
+        return publicUrl;
+      }
+    } catch (error) {
+      console.error('Error getting user avatar:', error);
+    }
+    return null;
+  };
+
   // First check if user is already registered
   console.log('👤 Checking if user is already registered...');
   const { data: existingPatient } = await supabase
@@ -20,12 +59,12 @@ export const handleStart = async (bot: any, msg: Message) => {
   if (existingPatient) {
     console.log('✅ Found existing patient:', existingPatient.id);
     // User is already registered, send welcome back message
+    const welcomeMessage = welcomeTranslations[existingPatient.language || 'uz'].patientWelcome(existingPatient.full_name);
     await bot.sendMessage(
       chatId,
-      existingPatient.language === 'uz'
-        ? `Xush kelibsiz, ${existingPatient.full_name}!`
-        : `Добро пожаловать, ${existingPatient.full_name}!`,
+      welcomeMessage,
       { 
+        parse_mode: 'MarkdownV2',
         reply_markup: {
           keyboard: getMainMenuKeyboard(existingPatient.language || 'uz').keyboard,
           resize_keyboard: true
@@ -54,20 +93,28 @@ export const handleStart = async (bot: any, msg: Message) => {
 
       if (!dentistError && dentist) {
         console.log('✅ Found dentist:', dentist.id);
+        // Get dentist's language preference
+        const dentistLanguage = dentist.language || 'uz';
+
         // Initialize state with registration token
         stateManager.set(chatId, {
           chatId,
-          step: 'LANGUAGE_SELECTION',
-          registrationToken: referralId
+          step: 'CONTACT_REQUEST',
+          registrationToken: referralId,
+          language: {
+            code: dentistLanguage,
+            label: dentistLanguage === 'uz' ? 'O\'zbekcha' : 'Русский',
+            flag: dentistLanguage === 'uz' ? '🇺🇿' : '🇷🇺'
+          }
         });
 
-        // Send language selection
+        // Send welcome message in dentist's language
+        const welcomeMessage = welcomeTranslations[dentistLanguage].newUserWelcome(dentist.full_name);
         await bot.sendMessage(
           chatId,
-          'Tilni tanlang / Выберите язык:',
+          welcomeMessage,
           {
-            parse_mode: 'MarkdownV2',
-            reply_markup: languageKeyboard
+            parse_mode: 'MarkdownV2'
           }
         );
         return;
@@ -83,20 +130,38 @@ export const handleStart = async (bot: any, msg: Message) => {
 
       if (!patientError && patient) {
         console.log('✅ Found patient:', patient.id);
-        // Initialize state with registration token
-        stateManager.set(chatId, {
-          chatId,
-          step: 'LANGUAGE_SELECTION',
-          registrationToken: referralId
-        });
+        // Get dentist's language preference
+        const { data: dentist, error: dentistError } = await supabase
+          .from('dentists')
+          .select('*')
+          .eq('id', patient.dentist_id)
+          .single();
 
-        // Send language selection
+        if (dentistError) throw dentistError;
+        
+        const dentistLanguage = dentist?.language || 'uz';
+
+        // Update patient with telegram chat ID and mark as registered
+        const { error: updateError } = await supabase
+          .from('patients')
+          .update(Object.assign({
+            telegram_chat_id: chatId.toString(),
+            telegram_registered: true,
+            telegram_registration_token: null,
+            language: dentistLanguage
+          }, msg.from?.id ? { avatar_url: await getUserAvatar(msg.from.id) } : {}))
+          .eq('id', patient.id);
+
+        if (updateError) throw updateError;
+
+        // Send welcome message in dentist's language
+        const welcomeMessage = welcomeTranslations[dentistLanguage].patientWelcome(patient.full_name);
         await bot.sendMessage(
           chatId,
-          'Tilni tanlang / Выберите язык:',
+          welcomeMessage,
           {
             parse_mode: 'MarkdownV2',
-            reply_markup: languageKeyboard
+            reply_markup: getMainMenuKeyboard(dentistLanguage)
           }
         );
         return;
